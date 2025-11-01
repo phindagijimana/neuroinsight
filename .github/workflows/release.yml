@@ -3,25 +3,51 @@ name: Build and Release Desktop Applications
 on:
   push:
     tags:
-      - 'v*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_id: ${{ steps.create_release.outputs.id }}
+  build-and-release:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    
+    runs-on: ${{ matrix.os }}
+    
     steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          tag_name: ${{ github.ref }}
-          release_name: NeuroInsight ${{ github.ref }}
-          draft: false
-          prerelease: false
+          node-version: '18'
+      
+      - name: Install dependencies
+        working-directory: hippo_desktop
+        run: npm install
+      
+      - name: Build application
+        working-directory: hippo_desktop
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            hippo_desktop/dist/*.dmg
+            hippo_desktop/dist/*.zip
+            hippo_desktop/dist/*.exe
+            hippo_desktop/dist/*.AppImage
+            hippo_desktop/dist/*.deb
+            hippo_desktop/dist/*.rpm
           body: |
             ## NeuroInsight Desktop Application
             
@@ -65,146 +91,3 @@ jobs:
             - [User Guide](https://github.com/${{ github.repository }}/blob/main/hippo_desktop/QUICK_START.md)
             - [System Requirements](https://github.com/${{ github.repository }}/blob/main/hippo_desktop/README.md#system-requirements)
             - [Troubleshooting](https://github.com/${{ github.repository }}/blob/main/hippo_desktop/README.md#troubleshooting)
-
-  build-macos:
-    needs: create-release
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: |
-          cd hippo_desktop
-          npm install
-
-      - name: Build macOS DMG
-        run: |
-          cd hippo_desktop
-          npm run dist:mac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload macOS DMG
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./hippo_desktop/dist/NeuroInsight-${{ github.ref_name }}.dmg
-          asset_name: NeuroInsight-${{ github.ref_name }}.dmg
-          asset_content_type: application/octet-stream
-
-      - name: Upload macOS ZIP
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./hippo_desktop/dist/NeuroInsight-${{ github.ref_name }}-mac.zip
-          asset_name: NeuroInsight-${{ github.ref_name }}-mac.zip
-          asset_content_type: application/zip
-
-  build-windows:
-    needs: create-release
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: |
-          cd hippo_desktop
-          npm install
-
-      - name: Build Windows Installer
-        run: |
-          cd hippo_desktop
-          npm run dist:win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Windows Installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./hippo_desktop/dist/NeuroInsight Setup ${{ github.ref_name }}.exe
-          asset_name: NeuroInsight-Setup-${{ github.ref_name }}.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload Windows Portable
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./hippo_desktop/dist/NeuroInsight ${{ github.ref_name }}.exe
-          asset_name: NeuroInsight-Portable-${{ github.ref_name }}.exe
-          asset_content_type: application/octet-stream
-
-  build-linux:
-    needs: create-release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: |
-          cd hippo_desktop
-          npm install
-
-      - name: Build Linux packages
-        run: |
-          cd hippo_desktop
-          npm run dist:linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload AppImage
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./hippo_desktop/dist/NeuroInsight-${{ github.ref_name }}.AppImage
-          asset_name: NeuroInsight-${{ github.ref_name }}.AppImage
-          asset_content_type: application/octet-stream
-
-      - name: Upload DEB package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./hippo_desktop/dist/neuroinsight_${{ github.ref_name }}_amd64.deb
-          asset_name: neuroinsight_${{ github.ref_name }}_amd64.deb
-          asset_content_type: application/octet-stream
-
-      - name: Upload RPM package
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./hippo_desktop/dist/neuroinsight-${{ github.ref_name }}.x86_64.rpm
-          asset_name: neuroinsight-${{ github.ref_name }}.x86_64.rpm
-          asset_content_type: application/octet-stream
-

@@ -56,33 +56,8 @@
       "!**/*.map",
       "!**/node_modules/**/*"
     ],
-    "extraResources": [
-      {
-        "from": "../backend",
-        "to": "app/backend",
-        "filter": ["**/*", "!**/__pycache__", "!**/test*", "!**/*.pyc"]
-      },
-      {
-        "from": "../frontend",
-        "to": "app/frontend",
-        "filter": ["**/*", "!**/node_modules"]
-      },
-      {
-        "from": "../workers",
-        "to": "app/workers"
-      },
-      {
-        "from": "../pipeline",
-        "to": "app/pipeline"
-      },
-      {
-        "from": "../docker-compose.yml",
-        "to": "app/docker-compose.yml"
-      },
-      {
-        "from": "config/env.template",
-        "to": "app/.env.template"
-      }
+    "asarUnpack": [
+      "**/*.node"
     ],
     "mac": {
       "category": "public.app-category.healthcare-fitness",
@@ -98,11 +73,10 @@
       ],
       "icon": "build/icon.icns",
       "darkModeSupport": true,
-      "hardenedRuntime": true,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "minimumSystemVersion": "10.15.0"
+      "minimumSystemVersion": "10.15.0",
+      "identity": null
     },
     "win": {
       "target": [
@@ -117,7 +91,9 @@
       ],
       "icon": "build/icon.ico",
       "publisherName": "NeuroInsight",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "requireAdministrator",
+      "signingHashAlgorithms": ["sha256"],
+      "sign": null
     },
     "nsis": {
       "oneClick": false,
