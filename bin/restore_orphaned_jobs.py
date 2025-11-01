@@ -68,7 +68,7 @@ def restore_orphaned_jobs():
             # Check if job already exists
             existing_job = db.query(Job).filter(Job.id == job_id).first()
             if existing_job:
-                print(f"✓ Job {job_id_str} already exists, skipping")
+                print(f"Job {job_id_str} already exists, skipping")
                 skipped_count += 1
                 continue
             

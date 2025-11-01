@@ -27,11 +27,11 @@ test_step() {
     echo -n "Testing: $name... "
     
     if eval "$command" > /dev/null 2>&1; then
-        echo -e "${GREEN}✅ PASS${NC}"
+        echo -e "${GREEN}PASS${NC}"
         ((PASSED++))
         return 0
     else
-        echo -e "${RED}❌ FAIL${NC}"
+        echo -e "${RED}FAIL${NC}"
         ((FAILED++))
         return 1
     fi
@@ -47,10 +47,10 @@ test_step_detailed() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     eval "$command"
     if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✅ PASSED${NC}"
+        echo -e "${GREEN}PASSED${NC}"
         ((PASSED++))
     else
-        echo -e "${RED}❌ FAILED${NC}"
+        echo -e "${RED}FAILED${NC}"
         ((FAILED++))
     fi
 }
@@ -86,7 +86,7 @@ else:
 " | head -1)
 
 if [ -z "$COMPLETED_JOB" ]; then
-    echo -e "${YELLOW}⚠️  No completed jobs found for testing${NC}"
+    echo -e "${YELLOW}WARNING: No completed jobs found for testing${NC}"
     echo "Creating test job..."
     
     # Upload a test file
@@ -157,10 +157,10 @@ else:
         SLICE_ID=\$(printf 'slice_%02d' \$i)
         HTTP_CODE=\$(curl -s -o /dev/null -w '%{http_code}' \"$API_BASE/visualizations/$COMPLETED_JOB/overlay/\$SLICE_ID\")
         if [ \"\$HTTP_CODE\" = \"200\" ]; then
-            echo \"  Slice \$SLICE_ID: ✅ HTTP 200\"
+            echo \"  Slice \$SLICE_ID: OK - HTTP 200\"
             ((SLICES_WORKING++))
         else
-            echo \"  Slice \$SLICE_ID: ❌ HTTP \$HTTP_CODE\"
+            echo \"  Slice \$SLICE_ID: ERROR - HTTP \$HTTP_CODE\"
         fi
     done
     if [ \$SLICES_WORKING -gt 0 ]; then
@@ -178,7 +178,7 @@ else:
     test_step_detailed "Check Files on Disk" "
     if [ -d \"$VIZ_DIR\" ]; then
         FILE_COUNT=\$(ls \"$VIZ_DIR\"/hippocampus_slice_*.png 2>/dev/null | wc -l)
-        echo \"  Directory exists: ✅\"
+        echo \"  Directory exists: OK\"
         echo \"  PNG files found: \$FILE_COUNT\"
         if [ \$FILE_COUNT -gt 0 ]; then
             ls -lh \"$VIZ_DIR\"/hippocampus_slice_*.png | head -3 | awk '{print \"    \" \$9 \" (\" \$5 \")\"}'
@@ -199,20 +199,20 @@ echo "────────────────────────�
 test_step_detailed "Frontend HTML Exists" "
 FRONTEND_FILE=\"/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/hippo/frontend/public/hippo_new_version.html\"
 if [ -f \"\$FRONTEND_FILE\" ]; then
-    echo \"  File exists: ✅\"
+    echo \"  File exists: OK\"
     LINES=\$(wc -l < \"\$FRONTEND_FILE\")
     echo \"  Lines of code: \$LINES\"
     # Check for key functions
     if grep -q 'ApiService.getJobs' \"\$FRONTEND_FILE\"; then
-        echo \"  API integration: ✅\"
+        echo \"  API integration: OK\"
     else
-        echo \"  API integration: ❌\"
+        echo \"  API integration: ERROR\"
         exit 1
     fi
     if grep -q 'ViewerPage' \"\$FRONTEND_FILE\"; then
-        echo \"  Viewer component: ✅\"
+        echo \"  Viewer component: OK\"
     else
-        echo \"  Viewer component: ❌\"
+        echo \"  Viewer component: ERROR\"
         exit 1
     fi
     exit 0
@@ -230,10 +230,10 @@ FRONTEND_FILE=\"/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/hippo/frontend/publ
 APIS_FOUND=0
 for api in 'getJobs' 'uploadFile' 'getJob' 'getMetrics' 'deleteJob'; do
     if grep -q \"ApiService.$api\" \"\$FRONTEND_FILE\"; then
-        echo \"  ✅ $api\"
+        echo \"  OK: $api\"
         ((APIS_FOUND++))
     else
-        echo \"  ❌ $api (missing)\"
+        echo \"  ERROR: $api (missing)\"
     fi
 done
 if [ \$APIS_FOUND -eq 5 ]; then
@@ -251,10 +251,10 @@ FRONTEND_FILE=\"/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/hippo/frontend/publ
 FIELDS_FOUND=0
 for field in 'patient_name' 'age' 'sex' 'scanner' 'sequence'; do
     if grep -q \"patientInfo.$field\" \"\$FRONTEND_FILE\" || grep -q \"$field\" \"\$FRONTEND_FILE\"; then
-        echo \"  ✅ $field\"
+        echo \"  OK: $field\"
         ((FIELDS_FOUND++))
     else
-        echo \"  ❌ $field (missing)\"
+        echo \"  ERROR: $field (missing)\"
     fi
 done
 if [ \$FIELDS_FOUND -ge 4 ]; then
@@ -273,10 +273,10 @@ echo -e "Failed: ${RED}$FAILED${NC}"
 echo ""
 
 if [ $FAILED -eq 0 ]; then
-    echo -e "${GREEN}✅ All tests passed! Pipeline is fully functional.${NC}"
+    echo -e "${GREEN}SUCCESS: All tests passed! Pipeline is fully functional.${NC}"
     exit 0
 else
-    echo -e "${YELLOW}⚠️  Some tests failed. Please review the output above.${NC}"
+    echo -e "${YELLOW}WARNING: Some tests failed. Please review the output above.${NC}"
     exit 1
 fi
 

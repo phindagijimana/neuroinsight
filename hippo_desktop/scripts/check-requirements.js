@@ -27,7 +27,7 @@ try {
   const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
   
   if (majorVersion >= 18) {
-    checks.passed.push(`Node.js ${nodeVersion} ✓`);
+    checks.passed.push(`Node.js ${nodeVersion}`);
   } else {
     checks.failed.push(`Node.js ${nodeVersion} (need 18+)`);
   }
@@ -38,7 +38,7 @@ try {
 // Check npm
 try {
   const npmVersion = execSync('npm --version', { encoding: 'utf-8' }).trim();
-  checks.passed.push(`npm ${npmVersion} ✓`);
+  checks.passed.push(`npm ${npmVersion}`);
 } catch (error) {
   checks.failed.push('npm not found');
 }
@@ -46,7 +46,7 @@ try {
 // Check Docker
 try {
   const dockerVersion = execSync('docker --version', { encoding: 'utf-8' }).trim();
-  checks.passed.push(`${dockerVersion} ✓`);
+  checks.passed.push(`${dockerVersion}`);
 } catch (error) {
   checks.warnings.push('Docker not found (required for testing)');
 }
@@ -68,12 +68,12 @@ requiredDirs.forEach(dir => {
 });
 
 if (dirsExist) {
-  checks.passed.push('All source directories found ✓');
+  checks.passed.push('All source directories found');
 }
 
 // Check node_modules
 if (fs.existsSync(path.join(__dirname, '../node_modules'))) {
-  checks.passed.push('Dependencies installed ✓');
+  checks.passed.push('Dependencies installed');
 } else {
   checks.warnings.push('Dependencies not installed (run: npm install)');
 }
@@ -81,7 +81,7 @@ if (fs.existsSync(path.join(__dirname, '../node_modules'))) {
 // Check for code signing certificates (optional)
 if (process.env.CSC_LINK) {
   if (fs.existsSync(process.env.CSC_LINK)) {
-    checks.passed.push('Code signing certificate found ✓');
+    checks.passed.push('Code signing certificate found');
   } else {
     checks.warnings.push('Code signing certificate configured but file not found');
   }
@@ -90,8 +90,8 @@ if (process.env.CSC_LINK) {
 }
 
 // Print results
-console.log('✓ PASSED:');
-checks.passed.forEach(msg => console.log(`  ✓ ${msg}`));
+console.log('PASSED:');
+checks.passed.forEach(msg => console.log(`  ${msg}`));
 console.log('');
 
 if (checks.warnings.length > 0) {
@@ -101,8 +101,8 @@ if (checks.warnings.length > 0) {
 }
 
 if (checks.failed.length > 0) {
-  console.log('✗ FAILED:');
-  checks.failed.forEach(msg => console.log(`  ✗ ${msg}`));
+  console.log('FAILED:');
+  checks.failed.forEach(msg => console.log(`  ${msg}`));
   console.log('');
   console.log('='.repeat(70));
   console.log('ERROR: Build requirements not met');

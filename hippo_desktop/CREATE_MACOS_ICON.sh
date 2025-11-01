@@ -27,6 +27,6 @@ iconutil -c icns icon.iconset -o build/icon.icns
 # Cleanup
 rm -rf icon.iconset
 
-echo "✓ Created build/icon.icns"
-echo "✅ macOS icon created successfully!"
+echo "Created build/icon.icns"
+echo "macOS icon created successfully!"
 
