@@ -73,7 +73,7 @@ class Metric(Base):
     asymmetry_index = Column(
         Float,
         nullable=False,
-        doc="Computed asymmetry index: (L - R) / ((L + R) / 2)"
+        doc="Computed asymmetry index: (L - R) / (L + R)"
     )
     
     # Timestamp
