@@ -8,6 +8,10 @@
     "name": "NeuroInsight Team",
     "email": "support@neuroinsight.app"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/phindagijimana/neuroinsight.git"
+  },
   "license": "MIT",
   "private": true,
   "scripts": {
