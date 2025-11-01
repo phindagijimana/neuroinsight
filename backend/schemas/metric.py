@@ -56,14 +56,14 @@ class MetricCreate(BaseModel):
         """
         Calculate asymmetry index if not provided.
         
-        Formula: AI = (L - R) / ((L + R) / 2)
+        Formula: AI = (L - R) / (L + R)
         """
         if v is None and "left_volume" in values and "right_volume" in values:
             left = values["left_volume"]
             right = values["right_volume"]
-            mean_volume = (left + right) / 2
-            if mean_volume > 0:
-                v = (left - right) / mean_volume
+            sum_volume = left + right
+            if sum_volume > 0:
+                v = (left - right) / sum_volume
             else:
                 v = 0.0
         return v

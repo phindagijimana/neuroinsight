@@ -65,7 +65,7 @@ Processing details
 
 Metrics and thresholds
 - The Stats page computes total hippocampal volume and Asymmetry Index (AI):
-  - AI = (Left − Right) / ((Left + Right) / 2) [raw value, not %]
+  - AI = (Left − Right) / (Left + Right) [raw value, not %]
   - Thresholds displayed for reference:
     - Left HS (Right-dominant) if AI < -0.068471917756097
     - Right HS (Left-dominant) if AI > 0.047289139210141
@@ -567,7 +567,7 @@ local_path = storage_service.get_file_path(storage_path)
 4. **Asymmetry Calculation**
    ```python
    metrics = processor._calculate_asymmetry(hippocampal_stats)
-   # Computes AI = (L - R) / ((L + R) / 2)
+   # Computes AI = (L - R) / (L + R)
    # For each hippocampal region
    ```
 
@@ -584,7 +584,7 @@ local_path = storage_service.get_file_path(storage_path)
 ```python
 # Calculate asymmetry index
 ai = calculate_asymmetry_index(left_volume, right_volume)
-# Returns: (L - R) / mean(L, R)
+# Returns: (L - R) / (L + R)
 
 # Classify laterality
 laterality = classify_laterality(ai, threshold=0.05)
