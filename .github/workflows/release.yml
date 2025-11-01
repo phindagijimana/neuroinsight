@@ -23,24 +23,24 @@ jobs:
           draft: false
           prerelease: false
           body: |
-            ## 🧠 NeuroInsight Desktop Application
+            ## NeuroInsight Desktop Application
             
             Advanced Hippocampal Asymmetry Analysis Platform
             
-            ### 📥 Installation
+            ### Installation
             
             **macOS**: Download the `.dmg` file and drag to Applications
             **Windows**: Download the `.exe` installer and run
             **Linux**: Download `.AppImage` (universal), `.deb` (Ubuntu/Debian), or `.rpm` (Fedora/RHEL)
             
-            ### ✨ Features
+            ### Features
             - One-click installation
             - Automatic Docker service management
             - GPU acceleration (10-20x faster with NVIDIA GPU)
             - Professional desktop experience
             - Offline processing (100% local)
             
-            ### 📋 System Requirements
+            ### System Requirements
             
             **Minimum**:
             - CPU: 4 cores (Intel i5, AMD Ryzen 5)
@@ -54,14 +54,14 @@ jobs:
             - Storage: 100GB SSD
             - GPU: NVIDIA GPU with 8GB+ VRAM
             
-            ### 🚀 Quick Start
+            ### Quick Start
             1. Download installer for your platform below
             2. Double-click to install
             3. Launch NeuroInsight
             4. Follow the setup wizard
             5. Start processing MRI scans!
             
-            ### 📖 Documentation
+            ### Documentation
             - [User Guide](https://github.com/${{ github.repository }}/blob/main/hippo_desktop/QUICK_START.md)
             - [System Requirements](https://github.com/${{ github.repository }}/blob/main/hippo_desktop/README.md#system-requirements)
             - [Troubleshooting](https://github.com/${{ github.repository }}/blob/main/hippo_desktop/README.md#troubleshooting)
