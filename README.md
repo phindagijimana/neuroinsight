@@ -217,9 +217,9 @@ npm run dev  # Starts on port 56052
 
 **Job Stati**:
 - **Pending**: Queued, waiting to start
-- **Running**: Currently processing
-- **Completed**: Results available
-- **Failed**: Error occurred (see error message)
+   - **Running**: Currently processing
+   - **Completed**: Results available
+   - **Failed**: Error occurred (see error message)
 
 **Progress Updates**:
 - Status updates automatically (5-second polling)
@@ -235,12 +235,12 @@ Once processing completes:
 - Left hemisphere volume (mm³)
 - Right hemisphere volume (mm³)
 - Asymmetry index
-- Laterality classification
+   - Laterality classification
 
 **Visualizations**:
 - 3D MRI viewer with hippocampal overlays
 - Coronal slice navigation (10 slices)
-- Asymmetry index bar chart
+   - Asymmetry index bar chart
 - Volume comparison chart (left vs right)
 - Interactive Plotly charts (zoom, pan, export)
 
@@ -429,7 +429,7 @@ POST /upload/
 Content-Type: multipart/form-data
 
 Request:
-  file: <MRI file>
+file: <MRI file>
 
 Response: 201 Created
 {
@@ -446,10 +446,10 @@ Response: 201 Created
 GET /jobs/{job_id}
 
 Response: 200 OK
-{
-  "id": "uuid",
-  "filename": "scan.nii.gz",
-  "status": "completed",
+  {
+    "id": "uuid",
+    "filename": "scan.nii.gz",
+    "status": "completed",
   "started_at": "2025-11-01T12:01:00Z",
   "completed_at": "2025-11-01T12:45:00Z",
   "result_path": "data/outputs/uuid/",
