@@ -276,7 +276,7 @@ class SystemChecker {
     if (checks.gpu.available) {
       lines.push('⚡ GPU acceleration available - processing will be 10-20x faster!');
     } else {
-      lines.push('ℹ️  No GPU detected - processing will use CPU (slower but functional)');
+      lines.push('INFO: No GPU detected - processing will use CPU (slower but functional)');
     }
     
     return lines.join('\n');

@@ -34,7 +34,7 @@ def test_database_url() -> str:
     
     Uses TEST_DATABASE_URL environment variable if set.
     
-    ⚠️  WARNING: If TEST_DATABASE_URL is not set, tests will use the
+    WARNING: If TEST_DATABASE_URL is not set, tests will use the
     production database. Always set TEST_DATABASE_URL in your environment
     or .env file to use a separate test database.
     """
@@ -46,7 +46,7 @@ def test_database_url() -> str:
     # Tests should use a separate test database
     settings = get_settings()
     db_url = settings.database_url
-    print(f"\n⚠️  WARNING: Using production database for tests: {db_url}")
+    print(f"\nWARNING: Using production database for tests: {db_url}")
     print("   Set TEST_DATABASE_URL environment variable to use a test database.\n")
     return db_url
 
@@ -70,7 +70,7 @@ def test_engine(test_database_url: str):
     
     yield engine
     
-    # ⚠️  IMPORTANT: Only drop tables if using a dedicated test database
+    # IMPORTANT: Only drop tables if using a dedicated test database
     # Do NOT drop tables if using the production database!
     # Instead, use transactions that roll back (handled by db_session fixture)
     test_db_url = os.getenv("TEST_DATABASE_URL")

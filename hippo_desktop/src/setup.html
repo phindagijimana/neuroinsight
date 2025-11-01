@@ -177,7 +177,7 @@
 <body>
   <div class="setup-container">
     <div class="setup-header">
-      <h1>🧠 Welcome to NeuroInsight</h1>
+      <h1>Welcome to NeuroInsight</h1>
       <p>Advanced Hippocampal Asymmetry Analysis</p>
     </div>
     
@@ -223,7 +223,7 @@
           Ready to Go!
         </h2>
         <div class="requirement">
-          <div class="requirement-title">✓ Setup Complete</div>
+          <div class="requirement-title">Setup Complete</div>
           <div class="requirement-detail">
             Your system is ready to run NeuroInsight. Click "Start" to begin.
           </div>
@@ -254,7 +254,7 @@
       if (!info) {
         container.innerHTML = `
           <div class="requirement error">
-            <div class="requirement-title">❌ System Check Failed</div>
+            <div class="requirement-title">ERROR: System Check Failed</div>
             <div class="requirement-detail">Could not check system requirements</div>
           </div>
         `;
@@ -268,7 +268,7 @@
       const cpuGood = info.cpu.cores >= 4;
       html += `
         <div class="requirement ${cpuGood ? '' : 'warning'}">
-          <div class="requirement-title">${cpuGood ? '✓' : '⚠'} CPU: ${info.cpu.cores} cores</div>
+          <div class="requirement-title">${cpuGood ? 'OK' : 'WARNING'} CPU: ${info.cpu.cores} cores</div>
           <div class="requirement-detail">${info.cpu.brand}</div>
         </div>
       `;
@@ -277,7 +277,7 @@
       const ramGood = info.memory.total >= 16;
       html += `
         <div class="requirement ${ramGood ? '' : 'warning'}">
-          <div class="requirement-title">${ramGood ? '✓' : '⚠'} RAM: ${info.memory.total}GB</div>
+          <div class="requirement-title">${ramGood ? 'OK' : 'WARNING'} RAM: ${info.memory.total}GB</div>
           <div class="requirement-detail">Free: ${info.memory.free}GB</div>
         </div>
       `;
@@ -286,7 +286,7 @@
       const hasGPU = info.gpu && info.gpu.length > 0 && info.gpu[0].model;
       html += `
         <div class="requirement">
-          <div class="requirement-title">${hasGPU ? '✓' : 'ℹ'} GPU: ${hasGPU ? info.gpu[0].model : 'None detected'}</div>
+          <div class="requirement-title">${hasGPU ? 'OK' : 'INFO'} GPU: ${hasGPU ? info.gpu[0].model : 'None detected'}</div>
           <div class="requirement-detail">${hasGPU ? 'Processing will be 10-20x faster!' : 'CPU processing will be used (slower but functional)'}</div>
         </div>
       `;

@@ -62,7 +62,7 @@ def restore_orphaned_jobs():
             try:
                 job_id = UUID(job_id_str)
             except ValueError:
-                print(f"⚠️  Skipping invalid UUID: {job_id_str}")
+                print(f"WARNING: Skipping invalid UUID: {job_id_str}")
                 continue
             
             # Check if job already exists
@@ -77,7 +77,7 @@ def restore_orphaned_jobs():
             viz_dirs = list(job_dir.glob("visualizations*"))
             
             if not fastsurfer_dir.exists() and not viz_dirs:
-                print(f"⚠️  Skipping {job_id_str} (no FastSurfer or visualizations)")
+                print(f"WARNING: Skipping {job_id_str} (no FastSurfer or visualizations)")
                 skipped_count += 1
                 continue
             
@@ -108,7 +108,7 @@ def restore_orphaned_jobs():
             db.add(job)
             db.commit()
             
-            print(f"✅ Restored job {job_id_str}")
+            print(f"SUCCESS: Restored job {job_id_str}")
             print(f"   Filename: {filename}")
             print(f"   Status: {status.value}")
             print(f"   Result path: {job_dir}")

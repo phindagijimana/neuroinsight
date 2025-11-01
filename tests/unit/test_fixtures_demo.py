@@ -36,7 +36,7 @@ def test_demo_basic_fixtures(db_session, job_factory):
     # Assertions
     assert result is not None
     assert result.id == job.id
-    print(f"✅ Created job: {job.id}, status: {job.status}")
+    print(f"Created job: {job.id}, status: {job.status}")
     
     # Note: Cleanup happens automatically - you don't need to delete the job!
 
@@ -60,7 +60,7 @@ def test_demo_custom_factory_values(db_session, job_factory):
     # Verify custom values
     assert job.filename == "custom_scan.nii.gz"
     assert job.status == JobStatus.RUNNING
-    print(f"✅ Custom job: {job.filename}, status: {job.status}")
+    print(f"Custom job: {job.filename}, status: {job.status}")
 
 
 # ============================================================================
@@ -92,7 +92,7 @@ def test_demo_multiple_fixtures(db_session, job_factory, metric_factory):
     # Verify metrics were created
     assert metric1.job_id == job.id
     assert metric2.job_id == job.id
-    print(f"✅ Job {job.id} has {2} metrics")
+    print(f"Job {job.id} has {2} metrics")
 
 
 # ============================================================================
@@ -111,7 +111,7 @@ def test_demo_completed_job_fixture(completed_job_factory):
     assert job.status == JobStatus.COMPLETED
     assert job.result_path is not None
     assert job.completed_at is not None
-    print(f"✅ Completed job: {job.id}, result_path: {job.result_path}")
+    print(f"Completed job: {job.id}, result_path: {job.result_path}")
 
 
 def test_demo_job_with_metrics(job_with_metrics):
@@ -123,7 +123,7 @@ def test_demo_job_with_metrics(job_with_metrics):
     
     assert job.id is not None
     # The job has metrics attached (depending on your model relationships)
-    print(f"✅ Job with metrics: {job.id}")
+    print(f"Job with metrics: {job.id}")
 
 
 # ============================================================================
@@ -177,7 +177,7 @@ def test_demo_isolation_first(db_session, job_factory):
     """First test - creates a job."""
     job = job_factory(filename="test1.nii.gz")
     jobs = JobService.get_jobs(db_session, skip=0, limit=100)
-    print(f"✅ Test 1: Found {len(jobs)} jobs")
+    print(f"Test 1: Found {len(jobs)} jobs")
 
 
 def test_demo_isolation_second(db_session):
@@ -186,7 +186,7 @@ def test_demo_isolation_second(db_session):
     # because each test gets a fresh db_session
     jobs = JobService.get_jobs(db_session, skip=0, limit=100)
     assert len(jobs) == 0  # Clean state!
-    print(f"✅ Test 2: Found {len(jobs)} jobs (clean state)")
+    print(f"Test 2: Found {len(jobs)} jobs (clean state)")
 
 
 # ============================================================================

@@ -49,7 +49,7 @@ def main():
         print("=" * 80)
         
         if args.dry_run:
-            print("\n🔍 DRY RUN MODE - No files will be deleted\n")
+            print("\nDRY RUN MODE - No files will be deleted\n")
         
         # Show current storage stats
         stats = cleanup_service.get_storage_stats()
@@ -139,11 +139,11 @@ def main():
             print(f"  Would delete {total_deleted['outputs']} output directories")
         
         print(f"\n{'='*80}")
-        print("✅ Cleanup completed")
+        print("Cleanup completed successfully")
         print(f"{'='*80}")
     
     except Exception as e:
-        print(f"\n❌ Error during cleanup: {e}", file=sys.stderr)
+        print(f"\nERROR: Error during cleanup: {e}", file=sys.stderr)
         sys.exit(1)
     
     finally:

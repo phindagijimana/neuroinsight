@@ -41,12 +41,12 @@ def migrate():
         
         db.commit()
         
-        print("✅ Successfully added CANCELLED status to JobStatus enum")
+        print("SUCCESS: Successfully added CANCELLED status to JobStatus enum")
         print("=" * 80)
         
     except Exception as e:
         db.rollback()
-        print(f"❌ Migration failed: {e}")
+        print(f"ERROR: Migration failed: {e}")
         print("\nIf the enum value already exists, this is safe to ignore.")
         sys.exit(1)
     

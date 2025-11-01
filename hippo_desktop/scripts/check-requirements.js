@@ -95,8 +95,8 @@ checks.passed.forEach(msg => console.log(`  ✓ ${msg}`));
 console.log('');
 
 if (checks.warnings.length > 0) {
-  console.log('⚠ WARNINGS:');
-  checks.warnings.forEach(msg => console.log(`  ⚠ ${msg}`));
+  console.log('WARNINGS:');
+  checks.warnings.forEach(msg => console.log(`  WARNING: ${msg}`));
   console.log('');
 }
 
@@ -105,13 +105,13 @@ if (checks.failed.length > 0) {
   checks.failed.forEach(msg => console.log(`  ✗ ${msg}`));
   console.log('');
   console.log('='.repeat(70));
-  console.log('❌ Build requirements not met');
+  console.log('ERROR: Build requirements not met');
   console.log('='.repeat(70));
   process.exit(1);
 }
 
 console.log('='.repeat(70));
-console.log('✅ All requirements met - ready to build!');
+console.log('SUCCESS: All requirements met - ready to build!');
 console.log('='.repeat(70));
 console.log('');
 console.log('Next steps:');
