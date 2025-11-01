@@ -38,6 +38,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: true
+          npm_config_build_from_source: false
       
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1

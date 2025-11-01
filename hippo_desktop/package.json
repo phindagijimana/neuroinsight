@@ -57,6 +57,8 @@
     "asarUnpack": [
       "**/*.node"
     ],
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
     "mac": {
       "category": "public.app-category.healthcare-fitness",
       "target": [
