@@ -55,8 +55,8 @@
       "src/**/*",
       "assets/**/*",
       "config/**/*",
-      "!**/*.map",
-      "!**/node_modules/**/*"
+      "package.json",
+      "!**/*.map"
     ],
     "asarUnpack": [
       "**/*.node"
