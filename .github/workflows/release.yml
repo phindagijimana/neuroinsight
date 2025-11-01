@@ -28,7 +28,7 @@ jobs:
       
       - name: Install dependencies
         working-directory: hippo_desktop
-        run: npm install --omit=optional --no-optional
+        run: npm install
         env:
           npm_config_build_from_source: false
       
