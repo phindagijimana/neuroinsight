@@ -108,9 +108,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "NeuroInsight",
-      "license": "build/license.txt",
-      "warningsAsErrors": false,
-      "include": "installers/windows/installer.nsh"
+      "warningsAsErrors": false
     },
     "linux": {
       "target": [
@@ -127,7 +125,6 @@
       }
     },
     "dmg": {
-      "background": "build/dmg-background.png",
       "icon": "build/icon.icns",
       "iconSize": 100,
       "contents": [
