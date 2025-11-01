@@ -67,20 +67,14 @@
       "category": "public.app-category.healthcare-fitness",
       "target": [
         {
-          "target": "dmg",
-          "arch": ["x64", "arm64"]
-        },
-        {
           "target": "zip",
           "arch": ["x64", "arm64"]
         }
       ],
       "icon": "build/icon.icns",
       "darkModeSupport": true,
-      "hardenedRuntime": false,
-      "gatekeeperAssess": false,
-      "minimumSystemVersion": "10.15.0",
-      "identity": null
+      "type": "distribution",
+      "minimumSystemVersion": "10.15.0"
     },
     "win": {
       "target": [
