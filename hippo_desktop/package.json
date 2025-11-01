@@ -55,6 +55,7 @@
       "src/**/*",
       "assets/**/*",
       "config/**/*",
+      "install-macos.sh",
       "package.json",
       "!**/*.map"
     ],
