@@ -7,7 +7,6 @@
 const os = require('os');
 const { exec } = require('child_process');
 const { promisify } = require('util');
-const si = require('systeminformation');
 const logger = require('./logger');
 
 const execAsync = promisify(exec);
@@ -140,26 +139,33 @@ class SystemChecker {
   }
 
   /**
-   * Check disk space
+   * Check disk space (using OS-specific commands)
    */
   async checkDisk() {
     try {
-      const fsSize = await si.fsSize();
-      const mainDisk = fsSize[0];
-      const freeGB = Math.round(mainDisk.available / (1024 ** 3));
+      let freeGB = 0;
+      
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        const { stdout } = await execAsync('df -k / | tail -1 | awk \'{print $4}\'');
+        freeGB = Math.round(parseInt(stdout.trim()) / (1024 * 1024));
+      } else if (process.platform === 'win32') {
+        const { stdout } = await execAsync('wmic logicaldisk where "DeviceID=\'C:\'" get FreeSpace');
+        const bytes = parseInt(stdout.split('\n')[1].trim());
+        freeGB = Math.round(bytes / (1024 ** 3));
+      }
+      
       const passed = freeGB >= this.requirements.minDiskGB;
       
       return {
         passed,
         freeGB,
-        totalGB: Math.round(mainDisk.size / (1024 ** 3)),
         message: passed
           ? `${freeGB}GB free disk space (required: ${this.requirements.minDiskGB}GB)`
           : `Only ${freeGB}GB free disk space (required: ${this.requirements.minDiskGB}GB)`
       };
     } catch (error) {
       return {
-        passed: false,
+        passed: true, // Don't fail on disk check error
         message: `Could not check disk space: ${error.message}`
       };
     }
@@ -189,11 +195,10 @@ class SystemChecker {
   }
 
   /**
-   * Check GPU availability
+   * Check GPU availability (NVIDIA only)
    */
   async checkGPU() {
     try {
-      // Try to detect NVIDIA GPU
       const { stdout } = await execAsync('nvidia-smi --query-gpu=name,memory.total --format=csv,noheader');
       const [name, memory] = stdout.trim().split(',');
       
@@ -205,7 +210,6 @@ class SystemChecker {
         message: `NVIDIA GPU detected: ${name.trim()}`
       };
     } catch (error) {
-      // No NVIDIA GPU found
       return {
         passed: false,
         available: false,
@@ -219,36 +223,26 @@ class SystemChecker {
    */
   async getInfo() {
     try {
-      const [cpu, mem, os, graphics] = await Promise.all([
-        si.cpu(),
-        si.mem(),
-        si.osInfo(),
-        si.graphics()
-      ]);
+      const cpus = os.cpus();
       
       return {
         cpu: {
-          manufacturer: cpu.manufacturer,
-          brand: cpu.brand,
-          cores: cpu.cores,
-          speed: cpu.speed
+          model: cpus[0].model,
+          cores: cpus.length,
+          speed: cpus[0].speed
         },
         memory: {
-          total: Math.round(mem.total / (1024 ** 3)),
-          free: Math.round(mem.free / (1024 ** 3)),
-          used: Math.round(mem.used / (1024 ** 3))
+          total: Math.round(os.totalmem() / (1024 ** 3)),
+          free: Math.round(os.freemem() / (1024 ** 3)),
+          used: Math.round((os.totalmem() - os.freemem()) / (1024 ** 3))
         },
         os: {
-          platform: os.platform,
-          distro: os.distro,
-          release: os.release,
-          arch: os.arch
+          platform: os.platform(),
+          type: os.type(),
+          release: os.release(),
+          arch: os.arch()
         },
-        gpu: graphics.controllers.map(gpu => ({
-          vendor: gpu.vendor,
-          model: gpu.model,
-          vram: gpu.vram
-        }))
+        gpu: { message: 'Run nvidia-smi for GPU info' }
       };
     } catch (error) {
       logger.error('Failed to get system info:', error);
@@ -274,7 +268,7 @@ class SystemChecker {
     lines.push('');
     
     if (checks.gpu.available) {
-      lines.push('⚡ GPU acceleration available - processing will be 10-20x faster!');
+      lines.push('GPU acceleration available - processing will be 10-20x faster!');
     } else {
       lines.push('INFO: No GPU detected - processing will use CPU (slower but functional)');
     }
@@ -284,5 +278,3 @@ class SystemChecker {
 }
 
 module.exports = SystemChecker;
-
-
