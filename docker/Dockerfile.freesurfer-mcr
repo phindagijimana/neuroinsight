@@ -1,0 +1,9 @@
+FROM freesurfer/freesurfer:7.4.1
+
+# Install Matlab Compiler Runtime R2019b for hippocampal subfields
+# This is required for segmentHA_T1.sh
+RUN /usr/local/freesurfer/bin/fs_install_mcr R2019b
+
+# Verify MCR installation
+RUN test -f /usr/local/freesurfer/MCRv97/bin/glnxa64/libmwlaunchermain.so && echo "MCR installed successfully"
+

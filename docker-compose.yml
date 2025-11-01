@@ -1,0 +1,160 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: neuroinsight-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-neuroinsight}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-neuroinsight}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuroinsight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - neuroinsight-network
+
+  # Redis (Message Broker)
+  redis:
+    image: redis:7-alpine
+    container_name: neuroinsight-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - neuroinsight-network
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    container_name: neuroinsight-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - neuroinsight-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: neuroinsight-backend
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      MINIO_ENDPOINT: minio:9000
+    volumes:
+      - ./backend:/app/backend
+      - ./workers:/app/workers
+      - ./pipeline:/app/pipeline
+      - ${PWD}/data/uploads:/data/uploads
+      - ${PWD}/data/outputs:/data/outputs
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - neuroinsight-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: neuroinsight-worker
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      MINIO_ENDPOINT: minio:9000
+      # Pass absolute host paths for Docker-in-Docker volume mounting
+      PWD: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo
+      HOST_UPLOAD_PATH: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/uploads
+      HOST_OUTPUT_PATH: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/outputs
+    volumes:
+      - ./backend:/app/backend
+      - ./workers:/app/workers
+      - ./pipeline:/app/pipeline
+      # Use bind mounts with absolute paths for Docker-in-Docker compatibility
+      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/uploads:/data/uploads
+      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/outputs:/data/outputs
+      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/license.txt:/freesurfer/license.txt:ro  # FreeSurfer license
+      - /var/run/docker.sock:/var/run/docker.sock  # For FastSurfer container access
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - neuroinsight-network
+    restart: unless-stopped
+    # Grant Docker group access (for Docker socket)
+    group_add:
+      - ${DOCKER_GID:-999}
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: neuroinsight-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - neuroinsight-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+
+networks:
+  neuroinsight-network:
+    driver: bridge
+

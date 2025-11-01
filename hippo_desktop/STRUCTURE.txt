@@ -1,0 +1,26 @@
+hippo_desktop/
+├── DEVELOPMENT_GUIDE.md
+├── QUICK_START.md
+├── README.md
+├── STRUCTURE.txt
+├── assets
+├── build
+├── config
+│   └── env.template
+├── installers
+├── package.json
+├── scripts
+│   └── check-requirements.js
+└── src
+    ├── main.js
+    ├── managers
+    │   ├── DockerManager.js
+    │   └── ServiceManager.js
+    ├── preload.js
+    ├── setup.html
+    ├── utils
+    │   ├── SystemChecker.js
+    │   └── logger.js
+    └── windows
+
+9 directories, 14 files

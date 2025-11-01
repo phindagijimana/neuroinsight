@@ -1,0 +1,248 @@
+# NeuroInsight - Git Ignore File
+
+# ============================================
+# Python
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# ============================================
+# Node.js / Frontend
+# ============================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# ============================================
+# Desktop Application (hippo_desktop)
+# ============================================
+hippo_desktop/node_modules/
+hippo_desktop/dist/
+hippo_desktop/build/release/
+hippo_desktop/.webpack/
+hippo_desktop/out/
+
+# Electron build artifacts
+hippo_desktop/*.log
+
+# ============================================
+# Data & Runtime Files
+# ============================================
+# User data
+data/uploads/*
+data/outputs/*
+!data/uploads/.gitkeep
+!data/outputs/.gitkeep
+
+# Database files
+data/database/
+instance-data/postgres/
+instance-data/postgres-run/
+
+# MinIO storage
+instance-data/minio/
+data/minio/
+
+# Redis data
+dump.rdb
+instance-data/redis/
+
+# ============================================
+# Logs
+# ============================================
+logs/*
+!logs/.gitkeep
+*.log
+*.out
+*.err
+
+# ============================================
+# Environment & Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# FreeSurfer license (sensitive)
+license.txt
+
+# ============================================
+# Docker & Containers
+# ============================================
+# Keep docker-compose files but ignore runtime data
+
+# Singularity/Apptainer images (too large)
+singularity-images/*.sif
+apptainer-images/*.sif
+apptainer-tmp/
+
+# ============================================
+# Testing
+# ============================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ============================================
+# OS Files
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# Temporary & Cache Files
+# ============================================
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+.cache/
+
+# ============================================
+# Archived/Trash Files
+# ============================================
+_trash/
+*.bak
+*.old
+
+# ============================================
+# IDE & Editors
+# ============================================
+*.sublime-project
+*.sublime-workspace
+.vscode/settings.json
+.vscode/launch.json
+
+# ============================================
+# Documentation Builds
+# ============================================
+docs/_build/
+site/
+
+# ============================================
+# Alembic (Database Migrations)
+# ============================================
+# Keep migration files but ignore version tracking temp files
+backend/alembic/versions/*.pyc
+
+# ============================================
+# Keep These (Examples)
+# ============================================
+# Sample/test data can be small
+!data/uploads/sample.nii.gz
+!data/outputs/example/
+
+# Documentation
+!docs/**/*.md
+!README*.md
+!*.md
+
+# Configuration templates
+!.env.example
+!config/*.example
+!config/*.template
+
+# ============================================
+# Large Files (Git LFS or exclude)
+# ============================================
+# MRI files are large - consider Git LFS
+*.nii
+*.nii.gz
+*.mgz
+*.dcm
+*.dicom
+
+# Binary images
+*.sif
+*.img
+*.tar.gz
+
+# Electron distributables (generated)
+*.dmg
+*.exe
+*.deb
+*.rpm
+*.AppImage
+*.snap

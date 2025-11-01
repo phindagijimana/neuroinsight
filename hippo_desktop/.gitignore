@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/release/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Electron
+.webpack/
+
+# Environment
+.env
+.env.local
+
+# User data (for testing)
+data/
+logs/
+
+# Temporary
+tmp/
+temp/
+
+

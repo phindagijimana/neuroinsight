@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuroInsight Setup</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .setup-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 600px;
+      width: 100%;
+      overflow: hidden;
+    }
+    
+    .setup-header {
+      background: #667eea;
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .setup-header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+    
+    .setup-header p {
+      opacity: 0.9;
+    }
+    
+    .setup-content {
+      padding: 40px;
+    }
+    
+    .step {
+      margin-bottom: 30px;
+    }
+    
+    .step h2 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #667eea;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .step-number {
+      background: #667eea;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    
+    .requirement {
+      background: #f7fafc;
+      border-left: 4px solid #48bb78;
+      padding: 12px 15px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+    }
+    
+    .requirement.warning {
+      border-left-color: #ed8936;
+    }
+    
+    .requirement.error {
+      border-left-color: #f56565;
+    }
+    
+    .requirement-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .requirement-detail {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #333;
+    }
+    
+    .btn-secondary:hover {
+      background: #cbd5e0;
+    }
+    
+    .progress {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: #667eea;
+      transition: width 0.3s;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .spinner {
+      border: 3px solid #e2e8f0;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="setup-container">
+    <div class="setup-header">
+      <h1>🧠 Welcome to NeuroInsight</h1>
+      <p>Advanced Hippocampal Asymmetry Analysis</p>
+    </div>
+    
+    <div class="setup-content">
+      <div class="step">
+        <h2>
+          <span class="step-number">1</span>
+          System Requirements
+        </h2>
+        <div id="requirements">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Checking your system...</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="step" style="display: none;" id="docker-step">
+        <h2>
+          <span class="step-number">2</span>
+          Docker Desktop
+        </h2>
+        <div class="requirement">
+          <div class="requirement-title">Docker Desktop Required</div>
+          <div class="requirement-detail">
+            NeuroInsight uses Docker to manage its processing environment.
+            Docker Desktop must be installed and running.
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-secondary" onclick="openDockerDownload()">
+            Download Docker Desktop
+          </button>
+          <button class="btn btn-primary" onclick="checkDocker()">
+            I've Installed Docker
+          </button>
+        </div>
+      </div>
+      
+      <div class="step" style="display: none;" id="complete-step">
+        <h2>
+          <span class="step-number">3</span>
+          Ready to Go!
+        </h2>
+        <div class="requirement">
+          <div class="requirement-title">✓ Setup Complete</div>
+          <div class="requirement-detail">
+            Your system is ready to run NeuroInsight. Click "Start" to begin.
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="completeSetup()">
+            Start NeuroInsight
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Check system requirements on load
+    window.onload = async () => {
+      try {
+        const systemInfo = await window.electronAPI.getSystemInfo();
+        displayRequirements(systemInfo);
+      } catch (error) {
+        console.error('Failed to check system:', error);
+      }
+    };
+    
+    function displayRequirements(info) {
+      const container = document.getElementById('requirements');
+      
+      if (!info) {
+        container.innerHTML = `
+          <div class="requirement error">
+            <div class="requirement-title">❌ System Check Failed</div>
+            <div class="requirement-detail">Could not check system requirements</div>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = '';
+      let allGood = true;
+      
+      // CPU
+      const cpuGood = info.cpu.cores >= 4;
+      html += `
+        <div class="requirement ${cpuGood ? '' : 'warning'}">
+          <div class="requirement-title">${cpuGood ? '✓' : '⚠'} CPU: ${info.cpu.cores} cores</div>
+          <div class="requirement-detail">${info.cpu.brand}</div>
+        </div>
+      `;
+      
+      // RAM
+      const ramGood = info.memory.total >= 16;
+      html += `
+        <div class="requirement ${ramGood ? '' : 'warning'}">
+          <div class="requirement-title">${ramGood ? '✓' : '⚠'} RAM: ${info.memory.total}GB</div>
+          <div class="requirement-detail">Free: ${info.memory.free}GB</div>
+        </div>
+      `;
+      
+      // GPU
+      const hasGPU = info.gpu && info.gpu.length > 0 && info.gpu[0].model;
+      html += `
+        <div class="requirement">
+          <div class="requirement-title">${hasGPU ? '✓' : 'ℹ'} GPU: ${hasGPU ? info.gpu[0].model : 'None detected'}</div>
+          <div class="requirement-detail">${hasGPU ? 'Processing will be 10-20x faster!' : 'CPU processing will be used (slower but functional)'}</div>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+      
+      // Show next step
+      setTimeout(() => {
+        document.getElementById('docker-step').style.display = 'block';
+      }, 500);
+    }
+    
+    function openDockerDownload() {
+      const platform = window.electronAPI.platform;
+      let url = 'https://www.docker.com/products/docker-desktop/';
+      
+      if (platform === 'darwin') {
+        url = 'https://desktop.docker.com/mac/main/amd64/Docker.dmg';
+      } else if (platform === 'win32') {
+        url = 'https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe';
+      }
+      
+      window.open(url, '_blank');
+    }
+    
+    async function checkDocker() {
+      // TODO: Implement Docker check
+      document.getElementById('docker-step').style.display = 'none';
+      document.getElementById('complete-step').style.display = 'block';
+    }
+    
+    function completeSetup() {
+      window.close();
+    }
+  </script>
+</body>
+</html>
+
+

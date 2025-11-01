@@ -1,0 +1,14 @@
+# NeuroInsight Running Services
+# Last started: $(date)
+
+POSTGRES_PID=$(pgrep -f "postgres -p 15432")
+REDIS_PID=$(pgrep -f "redis-server --port 16381")
+MINIO_PID=$(pgrep -f "minio server")
+BACKEND_PID=$(pgrep -f "uvicorn main:app")
+FRONTEND_PID=$(pgrep -f "vite")
+
+POSTGRES_PORT=15432
+REDIS_PORT=16381
+MINIO_PORT=19000
+BACKEND_PORT=8000
+FRONTEND_PORT=5173
