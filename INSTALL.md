@@ -57,7 +57,7 @@ cd /path/to/neuroinsight
 # Create environment file (first time only)
 cp .env.example .env
 
-# Start NeuroInsight
+# Start NeuroInsight (creates directories automatically)
 docker-compose up -d
 
 # Open in browser (after 30 seconds)
@@ -73,7 +73,7 @@ cd C:\path\to\neuroinsight
 # Create environment file (first time only)
 copy .env.example .env
 
-# Start NeuroInsight
+# Start NeuroInsight (creates directories automatically)
 docker-compose up -d
 
 # Wait 30 seconds, then open browser to:

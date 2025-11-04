@@ -1,4 +1,13 @@
 services:
+  # Initialize directories
+  init:
+    image: busybox
+    container_name: neuroinsight-init
+    command: sh -c "mkdir -p /data/uploads /data/outputs /data/logs && chmod -R 777 /data"
+    volumes:
+      - ./data:/data
+    restart: "no"
+
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
@@ -78,6 +87,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
+      init:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       redis:
@@ -113,6 +124,8 @@ services:
       - ./data/outputs:/data/outputs
       - /var/run/docker.sock:/var/run/docker.sock  # For FastSurfer container access
     depends_on:
+      init:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       redis:
