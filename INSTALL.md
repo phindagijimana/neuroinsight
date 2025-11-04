@@ -86,6 +86,8 @@ docker-compose up -d
 
 Visit **http://localhost:3000** in your browser to use NeuroInsight.
 
+**Important:** The URL is ALWAYS `http://localhost:3000` - this is the standard port for all users.
+
 ### What you'll see:
 - Upload interface for MRI scans
 - Processing queue

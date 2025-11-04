@@ -116,9 +116,17 @@ Start-Process "http://localhost:3000"
 
 ### First Time Setup
 
-When you first open http://localhost:3000, you'll see the NeuroInsight interface.
+When you first open **http://localhost:3000**, you'll see the NeuroInsight interface.
 
 **That's it! You're ready to process MRI scans.**
+
+---
+
+### ⚠️ Important: Accessing the Application
+
+**Always use:** `http://localhost:3000`
+
+If you see a different port in `docker-compose ps`, there may be a configuration issue. The correct URL is always **port 3000**.
 
 ---
 
