@@ -78,6 +78,9 @@ cd neuroinsight
 # Create environment file
 cp .env.example .env
 
+# Create required directories
+./setup-directories.sh
+
 # Start all services
 docker-compose up -d
 
@@ -95,6 +98,9 @@ cd neuroinsight
 # Create environment file
 copy .env.example .env
 
+# Create required directories
+mkdir data\uploads data\outputs data\logs
+
 # Start all services
 docker-compose up -d
 
@@ -108,6 +114,7 @@ docker-compose up -d
 ```powershell
 cd neuroinsight
 Copy-Item .env.example .env
+New-Item -ItemType Directory -Force -Path data/uploads,data/outputs,data/logs
 docker-compose up -d
 Start-Process "http://localhost:3000"
 ```
