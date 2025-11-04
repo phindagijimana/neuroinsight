@@ -1,7 +1,7 @@
 {
   "name": "neuroinsight-desktop",
   "productName": "NeuroInsight",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Advanced Hippocampal Asymmetry Analysis - Desktop Application",
   "main": "src/main.js",
   "author": {

@@ -4,7 +4,7 @@
  * Manages NeuroInsight services via Docker Compose
  */
 
-const compose = require('docker-compose');
+const compose = require('../utils/ComposeWrapper');
 const path = require('path');
 const fs = require('fs');
 const fetch = require('node-fetch');
@@ -47,14 +47,13 @@ class ServiceManager {
     // Start services using docker-compose
     const composeOptions = {
       cwd: this.appPath,
-      log: true,
       config: 'docker-compose.yml'
     };
     
     try {
       logger.info('Running docker-compose up...');
       
-      const result = await compose.upAll(composeOptions);
+      const result = await compose.up(composeOptions);
       logger.info('Docker Compose result:', result);
       
       // Wait for services to be healthy
@@ -78,7 +77,7 @@ class ServiceManager {
     
     const composeOptions = {
       cwd: this.appPath,
-      log: true
+      config: 'docker-compose.yml'
     };
     
     try {
@@ -248,7 +247,9 @@ class ServiceManager {
   async getLogs(serviceName, lines = 100) {
     const composeOptions = {
       cwd: this.appPath,
-      commandOptions: [serviceName, ['--tail', lines.toString()]]
+      config: 'docker-compose.yml',
+      service: serviceName,
+      tail: lines
     };
     
     try {
