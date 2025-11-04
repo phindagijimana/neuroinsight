@@ -159,7 +159,7 @@ class ComposeWrapper {
    */
   async run(args, cwd) {
     return new Promise((resolve, reject) => {
-      const process = spawn(this.composeCommand, args, {
+      const childProcess = spawn(this.composeCommand, args, {
         cwd: cwd || process.cwd(),
         env: { ...process.env }
       });
@@ -167,7 +167,7 @@ class ComposeWrapper {
       let stdout = '';
       let stderr = '';
 
-      process.stdout.on('data', (data) => {
+      childProcess.stdout.on('data', (data) => {
         const output = data.toString();
         stdout += output;
         if (logger) {
@@ -175,7 +175,7 @@ class ComposeWrapper {
         }
       });
 
-      process.stderr.on('data', (data) => {
+      childProcess.stderr.on('data', (data) => {
         const output = data.toString();
         stderr += output;
         if (logger) {
@@ -183,7 +183,7 @@ class ComposeWrapper {
         }
       });
 
-      process.on('close', (code) => {
+      childProcess.on('close', (code) => {
         if (code === 0) {
           resolve({ out: stdout, err: stderr, exitCode: code });
         } else {
@@ -195,7 +195,7 @@ class ComposeWrapper {
         }
       });
 
-      process.on('error', (error) => {
+      childProcess.on('error', (error) => {
         reject(error);
       });
     });
