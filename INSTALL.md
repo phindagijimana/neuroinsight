@@ -54,6 +54,9 @@ cd neuroinsight
 # Navigate to the neuroinsight folder
 cd /path/to/neuroinsight
 
+# Create environment file (first time only)
+cp .env.example .env
+
 # Start NeuroInsight
 docker-compose up -d
 
@@ -66,6 +69,9 @@ open http://localhost:3000
 # Open Command Prompt
 # Navigate to the neuroinsight folder
 cd C:\path\to\neuroinsight
+
+# Create environment file (first time only)
+copy .env.example .env
 
 # Start NeuroInsight
 docker-compose up -d

@@ -75,6 +75,9 @@ cd neuroinsight
 # Navigate to the neuroinsight folder
 cd neuroinsight
 
+# Create environment file
+cp .env.example .env
+
 # Start all services
 docker-compose up -d
 
@@ -89,6 +92,9 @@ open http://localhost:3000
 # Navigate to the neuroinsight folder
 cd neuroinsight
 
+# Create environment file
+copy .env.example .env
+
 # Start all services
 docker-compose up -d
 
@@ -101,6 +107,7 @@ docker-compose up -d
 **Windows (PowerShell):**
 ```powershell
 cd neuroinsight
+Copy-Item .env.example .env
 docker-compose up -d
 Start-Process "http://localhost:3000"
 ```

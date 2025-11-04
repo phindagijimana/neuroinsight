@@ -40,6 +40,22 @@ if [ "$BRANCH" != "web-app" ]; then
     echo ""
 fi
 
+# Create .env file if it doesn't exist
+echo "Checking environment file..."
+if [ ! -f ".env" ]; then
+    if [ -f ".env.example" ]; then
+        echo "Creating .env from .env.example..."
+        cp .env.example .env
+        echo "✓ Created .env file"
+    else
+        echo "ERROR: .env.example not found"
+        exit 1
+    fi
+else
+    echo "✓ .env file exists"
+fi
+echo ""
+
 # Start services
 echo "Starting services..."
 docker-compose up -d
