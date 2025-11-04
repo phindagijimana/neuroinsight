@@ -17,6 +17,28 @@ const ServiceManager = require('./managers/ServiceManager');
 const SystemChecker = require('./utils/SystemChecker');
 const logger = require('./utils/logger');
 
+// Fix PATH for Docker on macOS (GUI apps don't inherit Terminal PATH)
+if (process.platform === 'darwin') {
+  const commonPaths = [
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin',
+    '/usr/sbin',
+    '/sbin',
+    '/opt/homebrew/bin',
+    '/Applications/Docker.app/Contents/Resources/bin'
+  ];
+  
+  // Add common paths to current PATH if not already present
+  const currentPath = process.env.PATH || '';
+  const pathsToAdd = commonPaths.filter(p => !currentPath.includes(p));
+  
+  if (pathsToAdd.length > 0) {
+    process.env.PATH = [...pathsToAdd, currentPath].join(':');
+    logger.info('Enhanced PATH for Docker:', process.env.PATH);
+  }
+}
+
 // Store for persisting user settings
 const store = new Store();
 
