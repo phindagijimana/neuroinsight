@@ -73,8 +73,8 @@ services:
       - ./backend:/app/backend
       - ./workers:/app/workers
       - ./pipeline:/app/pipeline
-      - ${PWD}/data/uploads:/data/uploads
-      - ${PWD}/data/outputs:/data/outputs
+      - ./data/uploads:/data/uploads
+      - ./data/outputs:/data/outputs
     ports:
       - "8000:8000"
     depends_on:
@@ -105,18 +105,12 @@ services:
       POSTGRES_HOST: db
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio:9000
-      # Pass absolute host paths for Docker-in-Docker volume mounting
-      PWD: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo
-      HOST_UPLOAD_PATH: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/uploads
-      HOST_OUTPUT_PATH: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/outputs
     volumes:
       - ./backend:/app/backend
       - ./workers:/app/workers
       - ./pipeline:/app/pipeline
-      # Use bind mounts with absolute paths for Docker-in-Docker compatibility
-      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/uploads:/data/uploads
-      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/outputs:/data/outputs
-      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/license.txt:/freesurfer/license.txt:ro  # FreeSurfer license
+      - ./data/uploads:/data/uploads
+      - ./data/outputs:/data/outputs
       - /var/run/docker.sock:/var/run/docker.sock  # For FastSurfer container access
     depends_on:
       db:
