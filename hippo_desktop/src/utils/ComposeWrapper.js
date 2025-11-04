@@ -7,9 +7,19 @@
 
 const { spawn, exec } = require('child_process');
 const { promisify } = require('util');
+const path = require('path');
 const logger = require('./logger');
 
 const execAsync = promisify(exec);
+
+// Common Docker installation paths (for macOS GUI apps that don't inherit PATH)
+const DOCKER_PATHS = [
+  '/usr/local/bin',
+  '/usr/bin',
+  '/opt/homebrew/bin',
+  '/Applications/Docker.app/Contents/Resources/bin',
+  process.env.PATH || ''
+].join(':');
 
 class ComposeWrapper {
   constructor() {
@@ -27,31 +37,35 @@ class ComposeWrapper {
 
     // Try docker compose (v2 - built into Docker CLI)
     try {
-      await execAsync('docker compose version');
+      await execAsync('docker compose version', { env: { ...process.env, PATH: DOCKER_PATHS } });
       this.composeCommand = 'docker';
       this.composeArgs = ['compose'];
       logger.info('Detected Docker Compose v2 (docker compose)');
       return 'docker compose';
     } catch (error) {
       // v2 not available
+      logger.debug('Docker Compose v2 not found:', error.message);
     }
 
     // Try docker-compose (v1 - standalone binary)
     try {
-      await execAsync('docker-compose version');
+      await execAsync('docker-compose version', { env: { ...process.env, PATH: DOCKER_PATHS } });
       this.composeCommand = 'docker-compose';
       this.composeArgs = [];
       logger.info('Detected Docker Compose v1 (docker-compose)');
       return 'docker-compose';
     } catch (error) {
       // v1 not available
+      logger.debug('Docker Compose v1 not found:', error.message);
     }
 
+    // Provide helpful error message
     throw new Error(
       'Docker Compose not found. Please ensure Docker Desktop is installed and running.\n\n' +
       'macOS: Install Docker Desktop from https://www.docker.com/products/docker-desktop\n' +
       'Windows: Install Docker Desktop from https://www.docker.com/products/docker-desktop\n' +
-      'Linux: Install docker-compose or docker-compose-plugin'
+      'Linux: Install docker-compose or docker-compose-plugin\n\n' +
+      'If Docker is installed, make sure Docker Desktop is running.'
     );
   }
 
@@ -161,7 +175,7 @@ class ComposeWrapper {
     return new Promise((resolve, reject) => {
       const childProcess = spawn(this.composeCommand, args, {
         cwd: cwd || process.cwd(),
-        env: { ...process.env }
+        env: { ...process.env, PATH: DOCKER_PATHS }
       });
 
       let stdout = '';

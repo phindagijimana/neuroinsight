@@ -11,6 +11,15 @@ const logger = require('./logger');
 
 const execAsync = promisify(exec);
 
+// Common Docker installation paths (for macOS GUI apps that don't inherit PATH)
+const DOCKER_PATHS = [
+  '/usr/local/bin',
+  '/usr/bin',
+  '/opt/homebrew/bin',
+  '/Applications/Docker.app/Contents/Resources/bin',
+  process.env.PATH || ''
+].join(':');
+
 class SystemChecker {
   constructor() {
     this.requirements = {
@@ -176,7 +185,7 @@ class SystemChecker {
    */
   async checkDocker() {
     try {
-      const { stdout } = await execAsync('docker --version');
+      const { stdout } = await execAsync('docker --version', { env: { ...process.env, PATH: DOCKER_PATHS } });
       const version = stdout.trim();
       
       return {

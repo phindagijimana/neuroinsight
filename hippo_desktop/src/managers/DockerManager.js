@@ -11,6 +11,15 @@ const logger = require('../utils/logger');
 
 const execAsync = promisify(exec);
 
+// Common Docker installation paths (for macOS GUI apps that don't inherit PATH)
+const DOCKER_PATHS = [
+  '/usr/local/bin',
+  '/usr/bin',
+  '/opt/homebrew/bin',
+  '/Applications/Docker.app/Contents/Resources/bin',
+  process.env.PATH || ''
+].join(':');
+
 class DockerManager {
   constructor() {
     this.docker = null;
@@ -23,9 +32,10 @@ class DockerManager {
    */
   async isDockerInstalled() {
     try {
-      await execAsync('docker --version');
+      await execAsync('docker --version', { env: { ...process.env, PATH: DOCKER_PATHS } });
       return true;
     } catch (error) {
+      logger.debug('Docker not found in PATH:', error.message);
       return false;
     }
   }
@@ -54,13 +64,13 @@ class DockerManager {
       
       if (platform === 'darwin') {
         // macOS
-        await execAsync('open -a Docker');
+        await execAsync('open -a Docker', { env: { ...process.env, PATH: DOCKER_PATHS } });
       } else if (platform === 'win32') {
         // Windows
-        await execAsync('start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"');
+        await execAsync('start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"', { env: { ...process.env, PATH: DOCKER_PATHS } });
       } else if (platform === 'linux') {
         // Linux - Docker daemon
-        await execAsync('sudo systemctl start docker');
+        await execAsync('sudo systemctl start docker', { env: { ...process.env, PATH: DOCKER_PATHS } });
       }
       
       // Wait for Docker to be ready
