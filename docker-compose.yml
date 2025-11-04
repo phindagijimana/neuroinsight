@@ -139,7 +139,7 @@ services:
       dockerfile: docker/Dockerfile.frontend
     container_name: neuroinsight-frontend
     ports:
-      - "5173:80"
+      - "3000:80"
     depends_on:
       - backend
     networks:
