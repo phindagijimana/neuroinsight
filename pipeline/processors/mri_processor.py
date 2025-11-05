@@ -189,6 +189,18 @@ class MRIProcessor:
             else:
                 num_threads = 1
             
+            # Get host paths for Docker-in-Docker mounting
+            # When worker runs inside Docker and spawns FastSurfer Docker container,
+            # we need to mount HOST paths, not container paths
+            host_upload_dir = os.getenv('HOST_UPLOAD_DIR', '/data/uploads')
+            host_output_dir = os.getenv('HOST_OUTPUT_DIR', '/data/outputs')
+            
+            # Calculate relative paths from host perspective
+            # nifti_path is like /data/uploads/file.nii (inside worker container)
+            # We need to translate to host path
+            input_host_path = host_upload_dir
+            output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
+            
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
             
@@ -196,11 +208,10 @@ class MRIProcessor:
             if runtime_arg:
                 cmd.extend(runtime_arg.split())
             
-            # Add volume mounts
+            # Add volume mounts with HOST paths
             cmd.extend([
-                "-v", f"{nifti_path.parent}:/input:ro",
-                "-v", f"{fastsurfer_dir}:/output",
-                "--user", f"{os.getuid()}:{os.getgid()}",
+                "-v", f"{input_host_path}:/input:ro",
+                "-v", f"{output_host_path}:/output",
                 "deepmi/fastsurfer:latest",
                 "--t1", f"/input/{nifti_path.name}",
                 "--sid", str(self.job_id),
