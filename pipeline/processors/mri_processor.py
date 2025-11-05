@@ -250,6 +250,9 @@ class MRIProcessor:
             # Force x86_64 platform for ARM compatibility (enables emulation)
             cmd.extend(["--platform", "linux/amd64"])
             
+            # Run as root to avoid user issues in emulated environment
+            cmd.extend(["--user", "root"])
+            
             # Add GPU support if available
             if runtime_arg:
                 cmd.extend(runtime_arg.split())
