@@ -155,10 +155,9 @@ class MRIProcessor:
     
     def _run_fastsurfer(self, nifti_path: Path) -> Path:
         """
-        Run FastSurfer segmentation using Singularity.
+        Run FastSurfer segmentation using Docker.
         
-        Executes FastSurfer container as a drop-in replacement for recon-all,
-        preparing output for FreeSurfer's SegmentHA.sh.
+        Executes FastSurfer container for whole brain segmentation.
         
         Args:
             nifti_path: Path to input NIfTI file
@@ -166,60 +165,51 @@ class MRIProcessor:
         Returns:
             Path to FastSurfer output directory
         """
-        logger.info("running_fastsurfer_singularity", input=str(nifti_path))
+        logger.info("running_fastsurfer_docker", input=str(nifti_path))
         
         fastsurfer_dir = self.output_dir / "fastsurfer"
         fastsurfer_dir.mkdir(exist_ok=True)
         
-        # Get Singularity image path (absolute path to project root)
-        project_root = Path("/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/hippo")
-        singularity_img = project_root / "singularity-images" / "fastsurfer.sif"
-        
-        if not singularity_img.exists():
-            logger.error("fastsurfer_image_not_found", path=str(singularity_img))
-            logger.warning("using_mock_data", reason="FastSurfer Singularity image not found")
-            self._create_mock_fastsurfer_output(fastsurfer_dir)
-            return fastsurfer_dir
-        
         try:
-            # Build Singularity command
-            cmd = ["singularity", "exec"]
-            
-            # Add GPU support if available
+            # Detect GPU support
             if self.has_gpu:
-                cmd.append("--nv")  # NVIDIA GPU support
                 device = "cuda"
-                logger.info("using_gpu_for_processing", note="GPU detected, using CUDA with --nv")
+                runtime_arg = "--gpus all"
+                logger.info("using_gpu_for_processing", note="GPU detected, using CUDA")
             else:
                 device = "cpu"
+                runtime_arg = ""
                 logger.info("using_cpu_for_processing", note="No GPU detected, using CPU")
             
             # Determine optimal thread count for CPU processing
             import os
             cpu_count = os.cpu_count() or 4
-            # Use most CPU cores but leave 1-2 free for system and other jobs
-            # If running multiple jobs, this helps balance load
             if device == "cpu":
-                num_threads = max(1, cpu_count - 2)  # Leave 2 cores free for system
+                num_threads = max(1, cpu_count - 2)  # Leave 2 cores free
             else:
-                num_threads = 1  # GPU doesn't need threading optimization
+                num_threads = 1
             
-            # Add bind mounts and environment
+            # Build Docker command
+            cmd = ["docker", "run", "--rm"]
+            
+            # Add GPU support if available
+            if runtime_arg:
+                cmd.extend(runtime_arg.split())
+            
+            # Add volume mounts
             cmd.extend([
-                "--bind", f"{nifti_path.parent}:/input:ro",
-                "--bind", f"{fastsurfer_dir}:/output",
-                "--env", "TQDM_DISABLE=1",
-                "--cleanenv",  # Clean environment
-                str(singularity_img),
-                "/fastsurfer/run_fastsurfer.sh",
+                "-v", f"{nifti_path.parent}:/input:ro",
+                "-v", f"{fastsurfer_dir}:/output",
+                "--user", f"{os.getuid()}:{os.getgid()}",
+                "deepmi/fastsurfer:latest",
                 "--t1", f"/input/{nifti_path.name}",
                 "--sid", str(self.job_id),
                 "--sd", "/output",
-                "--seg_only",  # Only segmentation, skip surface reconstruction (faster)
+                "--seg_only",  # Only segmentation, skip surface reconstruction
                 "--device", device,
-                "--batch", "1",  # Batch size
-                "--threads", str(num_threads),  # Enable multi-threading for CPU processing
-                "--viewagg_device", "cpu",  # Use CPU for view aggregation to save GPU memory
+                "--batch", "1",
+                "--threads", str(num_threads),
+                "--viewagg_device", "cpu",
             ])
             
             if device == "cpu":
@@ -227,13 +217,13 @@ class MRIProcessor:
                     "cpu_threading_enabled",
                     threads=num_threads,
                     total_cores=cpu_count,
-                    note=f"Using {num_threads} threads for CPU parallel processing"
+                    note=f"Using {num_threads} threads for CPU processing"
                 )
             
             logger.info(
-                "executing_fastsurfer_whole_brain",
+                "executing_fastsurfer",
                 command=" ".join(cmd),
-                note="Running FastSurfer with Singularity for whole brain segmentation"
+                note="Running FastSurfer with Docker"
             )
             
             result = subprocess.run(
@@ -247,14 +237,14 @@ class MRIProcessor:
             logger.info(
                 "fastsurfer_completed",
                 output_dir=str(fastsurfer_dir),
-                note="Whole brain segmentation complete, ready for SegmentHA.sh"
+                note="Brain segmentation complete"
             )
             
         except subprocess.TimeoutExpired:
             logger.error("fastsurfer_timeout")
             logger.warning(
                 "using_mock_data",
-                reason="Processing timeout - using mock data for development"
+                reason="Processing timeout - using mock data"
             )
             self._create_mock_fastsurfer_output(fastsurfer_dir)
         
@@ -262,8 +252,8 @@ class MRIProcessor:
             logger.error(
                 "fastsurfer_execution_failed",
                 error=str(e),
-                stderr=e.stderr if hasattr(e, 'stderr') and e.stderr else "No stderr output",
-                stdout=e.stdout if hasattr(e, 'stdout') and e.stdout else "No stdout output",
+                stderr=e.stderr if hasattr(e, 'stderr') and e.stderr else "No stderr",
+                stdout=e.stdout if hasattr(e, 'stdout') and e.stdout else "No stdout",
                 returncode=e.returncode,
             )
             logger.warning("using_mock_data", reason="FastSurfer execution failed")
@@ -271,9 +261,18 @@ class MRIProcessor:
         
         except FileNotFoundError:
             logger.warning(
-                "singularity_not_found",
-                note="Singularity not available - using mock data"
+                "docker_not_found",
+                note="Docker not available - using mock data"
             )
+            self._create_mock_fastsurfer_output(fastsurfer_dir)
+        
+        except Exception as e:
+            logger.error(
+                "fastsurfer_unexpected_error",
+                error=str(e),
+                error_type=type(e).__name__
+            )
+            logger.warning("using_mock_data", reason=f"Unexpected error: {str(e)}")
             self._create_mock_fastsurfer_output(fastsurfer_dir)
         
         return fastsurfer_dir
