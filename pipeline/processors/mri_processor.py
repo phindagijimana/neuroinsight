@@ -192,8 +192,51 @@ class MRIProcessor:
             # Get host paths for Docker-in-Docker mounting
             # When worker runs inside Docker and spawns FastSurfer Docker container,
             # we need to mount HOST paths, not container paths
-            host_upload_dir = os.getenv('HOST_UPLOAD_DIR', '/data/uploads')
-            host_output_dir = os.getenv('HOST_OUTPUT_DIR', '/data/outputs')
+            host_upload_dir = os.getenv('HOST_UPLOAD_DIR')
+            host_output_dir = os.getenv('HOST_OUTPUT_DIR')
+            
+            # If not set, try to auto-detect from Docker inspect
+            if not host_upload_dir or not host_output_dir:
+                try:
+                    import subprocess
+                    import json
+                    
+                    # Get our own container info
+                    result = subprocess.run(
+                        ['docker', 'inspect', os.uname().nodename],
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    container_info = json.loads(result.stdout)[0]
+                    
+                    # Extract mount sources from our container
+                    for mount in container_info.get('Mounts', []):
+                        dest = mount.get('Destination', '')
+                        if dest == '/data/uploads' and not host_upload_dir:
+                            host_upload_dir = mount.get('Source')
+                        elif dest == '/data/outputs' and not host_output_dir:
+                            host_output_dir = mount.get('Source')
+                    
+                    logger.info(
+                        "auto_detected_host_paths",
+                        upload_dir=host_upload_dir,
+                        output_dir=host_output_dir
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "host_path_detection_failed",
+                        error=str(e),
+                        note="Falling back to container paths (may fail)"
+                    )
+                    host_upload_dir = host_upload_dir or '/data/uploads'
+                    host_output_dir = host_output_dir or '/data/outputs'
+            else:
+                logger.info(
+                    "using_configured_host_paths",
+                    upload_dir=host_upload_dir,
+                    output_dir=host_output_dir
+                )
             
             # Calculate relative paths from host perspective
             # nifti_path is like /data/uploads/file.nii (inside worker container)
@@ -203,6 +246,9 @@ class MRIProcessor:
             
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
+            
+            # Force x86_64 platform for ARM compatibility (enables emulation)
+            cmd.extend(["--platform", "linux/amd64"])
             
             # Add GPU support if available
             if runtime_arg:
