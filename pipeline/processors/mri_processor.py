@@ -270,6 +270,7 @@ class MRIProcessor:
                 "--batch", "1",
                 "--threads", str(num_threads),
                 "--viewagg_device", "cpu",
+                "--allow_root",  # Required when running as root user
             ])
             
             if device == "cpu":
