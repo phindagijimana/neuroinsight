@@ -117,9 +117,9 @@ jobs:
       - name: Install Python dependencies
         working-directory: desktop_alone
         run: |
-          pip install --upgrade pip
-          pip install -r backend/requirements.txt
-          pip install pyinstaller
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+          python -m pip install pyinstaller
         shell: bash
       
       - name: Build backend bundle
