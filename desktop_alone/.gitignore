@@ -42,6 +42,13 @@ electron-app/node_modules/
 electron-app/dist/
 electron-app/out/
 
+# Keep icon files in build directory
+!electron-app/build/
+!electron-app/build/icon.icns
+!electron-app/build/icon.ico
+!electron-app/build/icons/
+!electron-app/build/icons/*.png
+
 # OS
 .DS_Store
 Thumbs.db
