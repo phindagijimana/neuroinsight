@@ -119,10 +119,8 @@
         "Categories": "Science;MedicalSoftware;Education;Medical"
       }
     },
-    "publish": {
-      "provider": "github",
-      "owner": "yourorg",
-      "repo": "neuroinsight"
+    "deb": {
+      "homepage": "https://github.com/phindagijimana/neuroinsight"
     }
   }
 }
