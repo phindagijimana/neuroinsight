@@ -247,12 +247,6 @@ class MRIProcessor:
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
             
-            # Force x86_64 platform for ARM compatibility (enables emulation)
-            cmd.extend(["--platform", "linux/amd64"])
-            
-            # Run as root to avoid user issues in emulated environment
-            cmd.extend(["--user", "root"])
-            
             # Add GPU support if available
             if runtime_arg:
                 cmd.extend(runtime_arg.split())
@@ -270,7 +264,6 @@ class MRIProcessor:
                 "--batch", "1",
                 "--threads", str(num_threads),
                 "--viewagg_device", "cpu",
-                "--allow_root",  # Required when running as root user
             ])
             
             if device == "cpu":
@@ -323,9 +316,18 @@ class MRIProcessor:
         except FileNotFoundError:
             logger.warning(
                 "docker_not_found",
-                note="Docker not available - using mock data"
+                note="Docker not available - trying Singularity"
             )
-            self._create_mock_fastsurfer_output(fastsurfer_dir)
+            # Try Singularity/Apptainer as fallback
+            try:
+                return self._run_fastsurfer_singularity(nifti_path, fastsurfer_dir)
+            except Exception as sing_error:
+                logger.warning(
+                    "singularity_fallback_failed",
+                    error=str(sing_error),
+                    note="Using mock data as final fallback"
+                )
+                self._create_mock_fastsurfer_output(fastsurfer_dir)
         
         except Exception as e:
             logger.error(
@@ -336,6 +338,113 @@ class MRIProcessor:
             logger.warning("using_mock_data", reason=f"Unexpected error: {str(e)}")
             self._create_mock_fastsurfer_output(fastsurfer_dir)
         
+        return fastsurfer_dir
+    
+    def _run_fastsurfer_singularity(self, nifti_path: Path, fastsurfer_dir: Path) -> Path:
+        """
+        Run FastSurfer using Singularity/Apptainer (fallback when Docker not available).
+        
+        Args:
+            nifti_path: Path to input NIfTI file
+            fastsurfer_dir: Output directory
+            
+        Returns:
+            Path to FastSurfer output directory
+        """
+        import shutil
+        
+        logger.info("running_fastsurfer_singularity", input=str(nifti_path))
+        
+        # Check for Singularity/Apptainer
+        singularity_cmd = None
+        if shutil.which("singularity"):
+            singularity_cmd = "singularity"
+        elif shutil.which("apptainer"):
+            singularity_cmd = "apptainer"
+        else:
+            raise FileNotFoundError("Neither singularity nor apptainer found")
+        
+        # Find Singularity image
+        singularity_img = Path(settings.singularity_image_path) if hasattr(settings, 'singularity_image_path') else None
+        if not singularity_img or not singularity_img.exists():
+            # Try common locations
+            possible_paths = [
+                Path("/mnt/nfs/home/urmc-sh.rochester.edu/pndagiji/hippo/singularity-images/fastsurfer.sif"),
+                Path(settings.output_dir).parent / "singularity-images" / "fastsurfer.sif",
+                Path("./singularity-images/fastsurfer.sif"),
+            ]
+            for path in possible_paths:
+                if path.exists():
+                    singularity_img = path
+                    break
+        
+        if not singularity_img or not singularity_img.exists():
+            raise FileNotFoundError(f"FastSurfer Singularity image not found")
+        
+        logger.info("found_singularity_image", path=str(singularity_img))
+        
+        # Detect GPU
+        device = "cuda" if self.has_gpu else "cpu"
+        
+        # Threading
+        import os
+        cpu_count = os.cpu_count() or 4
+        num_threads = max(1, cpu_count - 2) if device == "cpu" else 1
+        
+        # Build Singularity command
+        cmd = [singularity_cmd, "exec"]
+        
+        # Add GPU support if available
+        if self.has_gpu:
+            cmd.append("--nv")
+            logger.info("using_gpu_for_processing", note="GPU detected, using CUDA with --nv")
+        else:
+            logger.info("using_cpu_for_processing", note="No GPU detected, using CPU")
+        
+        # Add bind mounts and environment
+        cmd.extend([
+            "--bind", f"{nifti_path.parent}:/input:ro",
+            "--bind", f"{fastsurfer_dir}:/output",
+            "--env", "TQDM_DISABLE=1",
+            "--cleanenv",
+            str(singularity_img),
+            "/fastsurfer/run_fastsurfer.sh",
+            "--t1", f"/input/{nifti_path.name}",
+            "--sid", str(self.job_id),
+            "--sd", "/output",
+            "--seg_only",
+            "--device", device,
+            "--batch", "1",
+            "--threads", str(num_threads),
+            "--viewagg_device", "cpu",
+        ])
+        
+        logger.info(
+            "cpu_threading_enabled",
+            threads=num_threads,
+            total_cores=cpu_count,
+            note=f"Using {num_threads} threads for CPU parallel processing"
+        )
+        
+        logger.info(
+            "executing_fastsurfer_singularity",
+            command=" ".join(cmd),
+            note="Running FastSurfer with Singularity"
+        )
+        
+        # Execute Singularity
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
+        
+        if result.returncode != 0:
+            logger.error(
+                "fastsurfer_singularity_failed",
+                returncode=result.returncode,
+                stderr=result.stderr[:500] if result.stderr else "No stderr",
+                stdout=result.stdout[:500] if result.stdout else "No stdout"
+            )
+            raise RuntimeError(f"FastSurfer Singularity failed: {result.stderr}")
+        
+        logger.info("fastsurfer_singularity_completed", output_dir=str(fastsurfer_dir))
         return fastsurfer_dir
     
     def _create_mock_fastsurfer_output(self, output_dir: Path) -> None:
