@@ -1,0 +1,318 @@
+name: Build Desktop Installers
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+      
+      - name: Install Python dependencies
+        working-directory: desktop_alone
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+      
+      - name: Build backend bundle
+        working-directory: desktop_alone
+        run: |
+          pyinstaller build.spec
+      
+      - name: Install Electron dependencies
+        working-directory: desktop_alone/electron-app
+        run: npm install
+      
+      - name: Build Linux installers
+        working-directory: desktop_alone/electron-app
+        run: npm run build:linux
+      
+      - name: Generate checksums
+        working-directory: desktop_alone/electron-app/dist
+        run: |
+          sha256sum *.AppImage *.deb > checksums-linux.txt
+          cat checksums-linux.txt
+      
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: |
+            desktop_alone/electron-app/dist/*.AppImage
+            desktop_alone/electron-app/dist/*.deb
+            desktop_alone/electron-app/dist/checksums-linux.txt
+          retention-days: 30
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install Python dependencies
+        working-directory: desktop_alone
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+        shell: bash
+      
+      - name: Build backend bundle
+        working-directory: desktop_alone
+        run: |
+          pyinstaller build.spec
+        shell: bash
+      
+      - name: Install Electron dependencies
+        working-directory: desktop_alone/electron-app
+        run: npm install
+      
+      - name: Build Windows installer
+        working-directory: desktop_alone/electron-app
+        run: npm run build:win
+      
+      - name: Generate checksums
+        working-directory: desktop_alone/electron-app/dist
+        run: |
+          Get-ChildItem *.exe | ForEach-Object {
+            $hash = (Get-FileHash $_.Name -Algorithm SHA256).Hash
+            "$hash  $($_.Name)" | Out-File -Append checksums-windows.txt -Encoding ASCII
+          }
+          Get-Content checksums-windows.txt
+        shell: pwsh
+      
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            desktop_alone/electron-app/dist/*.exe
+            desktop_alone/electron-app/dist/checksums-windows.txt
+          retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      
+      - name: Install Python dependencies
+        working-directory: desktop_alone
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+      
+      - name: Build backend bundle
+        working-directory: desktop_alone
+        run: |
+          pyinstaller build.spec
+      
+      - name: Install Electron dependencies
+        working-directory: desktop_alone/electron-app
+        run: npm install
+      
+      - name: Build macOS installer
+        working-directory: desktop_alone/electron-app
+        run: npm run build:mac
+      
+      - name: Generate checksums
+        working-directory: desktop_alone/electron-app/dist
+        run: |
+          shasum -a 256 *.dmg > checksums-macos.txt
+          cat checksums-macos.txt
+      
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: |
+            desktop_alone/electron-app/dist/*.dmg
+            desktop_alone/electron-app/dist/checksums-macos.txt
+          retention-days: 30
+
+  create-release:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-installers
+          path: installers/linux
+      
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: installers/windows
+      
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-installer
+          path: installers/macos
+      
+      - name: Display installer sizes
+        run: |
+          echo "=== Linux Installers ==="
+          ls -lh installers/linux/
+          echo ""
+          echo "=== Windows Installer ==="
+          ls -lh installers/windows/
+          echo ""
+          echo "=== macOS Installer ==="
+          ls -lh installers/macos/
+      
+      - name: Create Release Notes
+        run: |
+          cat > RELEASE_NOTES.md << 'EOF'
+          # NeuroInsight Desktop Application
+          
+          **First production release of standalone desktop application!**
+          
+          ## 🎉 What's New
+          
+          - ✅ One-click installation (no Docker required)
+          - ✅ Professional desktop application with splash screen
+          - ✅ FastSurfer MRI processing built-in
+          - ✅ Offline capable after installation
+          - ✅ All dependencies bundled
+          
+          ## 📦 Downloads
+          
+          ### Linux
+          - **AppImage** (Recommended): Portable, works on any modern Linux distribution
+          - **DEB Package**: For Ubuntu/Debian systems with system integration
+          
+          ### Windows
+          - **Setup.exe**: Standard Windows installer with desktop shortcuts
+          
+          ### macOS
+          - **DMG**: Universal binary for Intel and Apple Silicon Macs
+          
+          ## 💻 System Requirements
+          
+          - **RAM:** 8 GB minimum, 16 GB recommended
+          - **Disk:** 10 GB free space
+          - **CPU:** 64-bit processor with AVX support
+          - **OS:**
+            - Linux: Ubuntu 20.04+, Fedora 38+, Debian 11+
+            - Windows: Windows 10 or later
+            - macOS: macOS 11 (Big Sur) or later
+          
+          ## 🚀 Quick Start
+          
+          ### Linux (AppImage)
+          ```bash
+          chmod +x NeuroInsight-1.0.0.AppImage
+          ./NeuroInsight-1.0.0.AppImage
+          ```
+          
+          ### Linux (DEB)
+          ```bash
+          sudo dpkg -i neuroinsight-standalone_1.0.0_amd64.deb
+          ```
+          
+          ### Windows
+          Double-click the installer and follow the setup wizard.
+          
+          ### macOS
+          Open the DMG and drag NeuroInsight to Applications folder.
+          
+          ## 🔒 Security Notes
+          
+          - **Windows:** You may see a SmartScreen warning (app is not yet code-signed)
+          - **macOS:** Right-click the app and select "Open" on first launch
+          - **Linux:** No security warnings
+          
+          ## ✅ Verify Downloads
+          
+          Check SHA256 checksums in the respective `checksums-*.txt` files.
+          
+          ## 📚 Documentation
+          
+          - [Installation Guide](https://github.com/phindagijimana/neuroinsight/blob/desktop-standalone/desktop_alone/INSTALLATION.md)
+          - [User Manual](https://github.com/phindagijimana/neuroinsight/blob/desktop-standalone/desktop_alone/README.md)
+          - [Troubleshooting](https://github.com/phindagijimana/neuroinsight/blob/desktop-standalone/desktop_alone/INSTALLATION.md#troubleshooting)
+          
+          ## 🐛 Known Issues
+          
+          - Windows SmartScreen may show warning (app not yet code-signed)
+          - macOS Gatekeeper may require manual permission on first launch
+          - Large file size (~3 GB) due to bundled models and dependencies
+          
+          ## 💬 Support
+          
+          - Report issues: https://github.com/phindagijimana/neuroinsight/issues
+          - Email: support@neuroinsight.app
+          
+          ## 🙏 Acknowledgments
+          
+          Built with: Electron, FastAPI, FastSurfer, PyTorch, React
+          EOF
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            installers/linux/*
+            installers/windows/*
+            installers/macos/*
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          name: NeuroInsight Desktop ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
