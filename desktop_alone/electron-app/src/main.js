@@ -95,9 +95,31 @@ function stopBackend() {
 }
 
 /**
+ * Create splash screen
+ */
+function createSplash() {
+  const splash = new BrowserWindow({
+    width: 500,
+    height: 400,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: false,
+    },
+  });
+  
+  splash.loadFile(path.join(__dirname, 'splash.html'));
+  return splash;
+}
+
+/**
  * Create the main application window
  */
 async function createWindow() {
+  // Show splash screen
+  const splash = createSplash();
+  
   // Create browser window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -129,8 +151,9 @@ async function createWindow() {
     // Load the application
     mainWindow.loadURL(`http://localhost:${BACKEND_PORT}`);
     
-    // Show window when ready
+    // Show window when ready, close splash
     mainWindow.once('ready-to-show', () => {
+      splash.close();
       mainWindow.show();
       log.info('Application window shown');
     });
