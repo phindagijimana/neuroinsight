@@ -541,3 +541,4 @@ When asking for help, include:
 
 **Need the desktop app instead?** See `hippo_desktop/README.md` for installer-based installation (easier for non-technical users).
 
+

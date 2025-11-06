@@ -1,417 +1,318 @@
 # NeuroInsight
 
-**Automated hippocampal asymmetry analysis from T1-weighted MRI scans**
-
-Fast, accurate brain segmentation with GPU acceleration using FastSurfer. Runs locally on your computer with 100% privacy.
+Automated hippocampal asymmetry analysis from T1-weighted MRI scans using FastSurfer deep learning segmentation.
 
 ---
 
-## 🚀 Quick Start
+## Deployment Options
+
+### 1. HPC Access (URMC Lab Members)
+
+Access the shared HPC installation via SSH tunnel - no local installation required.
+
+```bash
+ssh -L 56052:localhost:56052 username@urmc-sh.rochester.edu
+```
+
+Open browser to: `http://localhost:56052`
+
+**Documentation:** [docs/LAB_ACCESS_GUIDE.md](docs/LAB_ACCESS_GUIDE.md)
+
+---
+
+### 2. Server Deployment (Docker Compose)
+
+Deploy on Linux servers, HPC systems, or for local development.
+
+```bash
+git clone https://github.com/phindagijimana/neuroinsight-web-app
+cd neuroinsight-web-app
+docker-compose up -d
+```
+
+Open browser to: `http://localhost:56052`
+
+**Supported Platforms:**
+- Linux x86_64 (Recommended)
+- macOS ARM64 (Limited - requires 20GB+ RAM, emulation)
+- Windows x86_64 (Untested)
+
+**Documentation:** See [Installation](#installation) below
+
+---
+
+### 3. Desktop Application
+
+**Current Status:** Docker manager with Electron UI (requires Docker Desktop)
+
+**Future Development:** Standalone executable with embedded backend (1-2 months)
+
+**Documentation:** [docs/STANDALONE_DESKTOP_APP.md](docs/STANDALONE_DESKTOP_APP.md)
+
+---
+
+## Installation
 
 ### Prerequisites
 
-1. **Docker Desktop** - [Download here](https://www.docker.com/products/docker-desktop)
-   - macOS 10.15+
-   - Windows 10/11
-   - Ubuntu 20.04+
+**Required:**
+- Docker Desktop ([download](https://www.docker.com/products/docker-desktop))
+- 16GB RAM minimum, 32GB recommended
+- 30GB free disk space
 
-2. **System Requirements:**
-   - **Minimum**: 4 CPU cores, 16GB RAM, 30GB free storage
-   - **Recommended**: 8+ CPU cores, 32GB RAM, 100GB SSD
-   - **Optional**: NVIDIA GPU (10-20x faster processing)
+**Optional:**
+- NVIDIA GPU with CUDA support (10-20x faster processing)
 
----
+### Quick Start
 
-### Installation
-
-#### Step 1: Install Docker Desktop
-
-**macOS:**
-```bash
-# Download from https://www.docker.com/products/docker-desktop
-# Install and start Docker Desktop
-# Wait for the whale icon in menu bar to appear
-```
-
-**Windows:**
-```bash
-# Download from https://www.docker.com/products/docker-desktop
-# Install and restart computer
-# Start Docker Desktop
-# Wait for "Docker Desktop is running" notification
-```
-
-**Linux:**
-```bash
-# Install Docker Engine and Docker Compose
-sudo apt-get update
-sudo apt-get install docker.io docker-compose
-sudo systemctl start docker
-```
-
----
-
-#### Step 2: Download NeuroInsight
-
-**Option A: Download ZIP (Easiest)**
-1. Go to: https://github.com/phindagijimana/neuroinsight
-2. Click green "Code" button
-3. Click "Download ZIP"
-4. Extract ZIP file
-5. Open Terminal/Command Prompt and navigate to extracted folder
-
-**Option B: Clone with Git**
-```bash
-git clone https://github.com/phindagijimana/neuroinsight.git
-cd neuroinsight
-```
-
----
-
-#### Step 3: Start NeuroInsight
-
-**macOS / Linux:**
-```bash
-# Navigate to the neuroinsight folder
-cd neuroinsight
-
-# Create environment file
-cp .env.example .env
-
-# Start all services (directories are created automatically)
-docker-compose up -d
-
-# Wait about 30 seconds for services to start
-
-# Open in browser
-open http://localhost:3000
-```
-
-**Windows (Command Prompt):**
-```cmd
-# Navigate to the neuroinsight folder
-cd neuroinsight
-
-# Create environment file
-copy .env.example .env
-
-# Start all services (directories are created automatically)
-docker-compose up -d
-
-# Wait about 30 seconds for services to start
-
-# Open browser and go to:
-# http://localhost:3000
-```
-
-**Windows (PowerShell):**
-```powershell
-cd neuroinsight
-Copy-Item .env.example .env
-docker-compose up -d
-Start-Process "http://localhost:3000"
-```
-
----
-
-### First Time Setup
-
-When you first open **http://localhost:3000**, you'll see the NeuroInsight interface.
-
-**That's it! You're ready to process MRI scans.**
-
----
-
-### ⚠️ Important: Accessing the Application
-
-**Always use:** `http://localhost:3000`
-
-If you see a different port in `docker-compose ps`, there may be a configuration issue. The correct URL is always **port 3000**.
-
----
-
-## 📖 How to Use
-
-### 1. Upload an MRI Scan
-- Click "Upload" or drag & drop
-- Supported formats: `.nii`, `.nii.gz`, `.dcm`
-- File should be a T1-weighted structural MRI
-
-### 2. Start Processing
-- Click "Process" button
-- Processing time:
-  - With GPU: 1-3 minutes
-  - Without GPU (CPU): 5-15 minutes
-
-### 3. View Results
-- Left hippocampal volume (mm³)
-- Right hippocampal volume (mm³)
-- Asymmetry Index: (L - R) / (L + R)
-- 3D visualization with overlays
-- Interactive brain viewer
-
-### 4. Export Results
-- Download as JSON
-- Download as CSV
-- Save 3D visualizations
-- Export reports
-
----
-
-## 🛑 Stopping NeuroInsight
-
-When you're done, stop the services:
-
-```bash
-docker-compose down
-```
-
-To remove all data and start fresh next time:
-```bash
-docker-compose down -v
-```
-
----
-
-## 🔄 Updating NeuroInsight
-
-To get the latest version:
-
-```bash
-# Navigate to neuroinsight folder
-cd neuroinsight
-
-# Stop services
-docker-compose down
-
-# Update code
-git pull origin main
-# OR download new ZIP and extract
-
-# Update Docker images
-docker-compose pull
-
-# Restart
-docker-compose up -d
-```
-
----
-
-## ❓ Troubleshooting
-
-### "Cannot connect to Docker daemon"
-**Solution:** Make sure Docker Desktop is running
-- macOS: Look for whale icon in menu bar
-- Windows: Look for whale icon in system tray
-- Linux: `sudo systemctl status docker`
-
-### "Port already in use"
-**Solution:** Stop existing services
-```bash
-docker-compose down
-docker-compose up -d
-```
-
-### "localhost:3000 not loading"
-**Solution:** Check if services started correctly
-```bash
-# Check status
-docker-compose ps
-
-# View logs
-docker-compose logs frontend
-docker-compose logs backend
-```
-
-### Database errors
-**Solution:** Fresh start
-```bash
-docker-compose down -v  # Removes all data
-docker-compose up -d    # Fresh start
-```
-
-### Processing stuck or failed
-**Solution:** Check worker logs
-```bash
-docker-compose logs worker
-```
-
----
-
-## 🔍 Advanced Usage
-
-### View Live Logs
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f backend
-docker-compose logs -f worker
-```
-
-### Restart Services
-```bash
-docker-compose restart
-```
-
-### Access Backend API Directly
-```
-http://localhost:8000/docs
-```
-Interactive API documentation (Swagger UI)
-
-### GPU Configuration
-
-If you have an NVIDIA GPU:
-
-1. **Install NVIDIA Docker Runtime**
+1. **Clone repository:**
    ```bash
-   # Linux
-   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
-   curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-   curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-   sudo apt-get update && sudo apt-get install -y nvidia-docker2
-   sudo systemctl restart docker
+   git clone https://github.com/phindagijimana/neuroinsight-web-app
+   cd neuroinsight-web-app
    ```
 
-2. **GPU will be automatically detected and used**
+2. **Start services:**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Access application:**
+   ```
+   http://localhost:56052
+   ```
+
+### Platform-Specific Notes
+
+**Linux (x86_64):**
+- Full support with Docker or Singularity
+- Recommended for production deployments
+
+**macOS (Apple Silicon):**
+- Increase Docker Desktop memory to 20GB+
+- Expect slower performance due to x86_64 emulation
+- Consider using SSH tunnel to HPC instead
+
+**Windows:**
+- Should work similar to Linux (untested)
+- Increase Docker Desktop memory allocation
 
 ---
 
-## 📊 Features
+## Usage
 
-- **Automated Processing**: Upload scan → get results in minutes
-- **FastSurfer Segmentation**: State-of-the-art deep learning brain segmentation
-- **Asymmetry Analysis**: Quantify left-right hippocampal differences
-- **GPU Acceleration**: 10-20x faster with NVIDIA GPU (optional)
-- **Interactive 3D Viewer**: Real-time brain visualization
-- **100% Local**: All processing on your computer (HIPAA-compliant)
-- **No Internet Required**: Works completely offline
-- **Export Reports**: JSON, CSV, images
+### Processing Workflow
 
----
+1. **Upload** - T1-weighted MRI scan (.nii, .nii.gz, .dcm)
+2. **Process** - Automated FastSurfer segmentation
+3. **Analyze** - View hippocampal volumes and asymmetry metrics
+4. **Export** - Download results in JSON, CSV, or image format
 
-## 🔒 Privacy & Security
+### Processing Time
 
-**Your data never leaves your computer:**
-- All processing happens locally
-- No data uploaded to servers
-- No internet connection required
-- HIPAA-compliant by design
-- Perfect for sensitive medical data
+- **GPU:** 1-3 minutes per scan
+- **CPU:** 40-60 minutes per scan
 
----
+### Results
 
-## 💻 System Information
-
-### What Gets Installed?
-
-NeuroInsight runs in Docker containers. When you run `docker-compose up -d`, it downloads and starts:
-
-1. **PostgreSQL** (database) - ~250MB
-2. **Redis** (cache) - ~30MB
-3. **MinIO** (file storage) - ~100MB
-4. **Backend API** (FastAPI) - ~500MB
-5. **Worker** (FastSurfer processing) - ~3GB
-6. **Frontend** (React web UI) - ~200MB
-
-**Total download:** ~4GB (first time only)
-
-### Ports Used
-
-- `3000` - Frontend (web interface)
-- `8000` - Backend API
-- `5432` - PostgreSQL database
-- `6379` - Redis cache
-- `9000` - MinIO storage
-
-If any port is already in use, edit `docker-compose.yml` to change ports.
+- Left and right hippocampal volumes (mm³)
+- Asymmetry Index: (L - R) / (L + R)
+- 3D visualization and overlays
+- Interactive brain viewer
 
 ---
 
-## 🏥 Clinical Use
+## Management
 
-NeuroInsight is designed for research and clinical assessment of hippocampal asymmetry, which may be relevant in:
+### View Logs
+
+```bash
+docker-compose logs -f worker    # Processing logs
+docker-compose logs -f backend   # API logs
+```
+
+### Stop Services
+
+```bash
+docker-compose down
+```
+
+### Update Installation
+
+```bash
+docker-compose down
+git pull origin web-app
+docker-compose pull
+docker-compose up -d
+```
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Lab Access Guide](docs/LAB_ACCESS_GUIDE.md) | SSH tunnel access for institutional users |
+| [User Guide](docs/USER_GUIDE.md) | Detailed usage instructions |
+| [API Documentation](http://localhost:8000/docs) | Interactive API reference (when running) |
+| [Desktop App Plan](docs/STANDALONE_DESKTOP_APP.md) | Standalone application development |
+| [Publication Checklist](PUBLICATION_READINESS_CHECKLIST.md) | Preparation for scientific publication |
+| [Platform Testing](TEST_BOTH_VERSIONS.md) | Compatibility test results |
+
+---
+
+## Technical Details
+
+### System Architecture
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| Frontend | Vite + Vanilla JS | Web interface |
+| Backend | FastAPI | REST API server |
+| Worker | Celery | Async task processing |
+| Database | PostgreSQL | Data persistence |
+| Cache | Redis | Task queue |
+| Storage | MinIO | File management |
+| Processing | FastSurfer + PyTorch | Brain segmentation |
+
+### Network Ports
+
+- `56052` - Web interface
+- `8000` - API server
+- `15432` - PostgreSQL
+- `6379` - Redis
+- `9000` - MinIO
+
+### Storage Requirements
+
+- **Docker images:** ~2.5GB (one-time download)
+- **Per scan:** ~500MB (input + processed output)
+- **Database:** Minimal (<100MB for metadata)
+
+---
+
+## Clinical Applications
+
+Hippocampal asymmetry analysis is relevant to:
 
 - Temporal lobe epilepsy
-- Alzheimer's disease
+- Alzheimer's disease and dementia
 - Hippocampal sclerosis
 - Memory disorders
 - Neurodevelopmental conditions
 
-**Note:** This software is for research purposes. Clinical decisions should be made by qualified healthcare professionals.
+**Note:** This software is intended for research purposes. Clinical decisions should be made by qualified healthcare professionals based on comprehensive patient evaluation.
 
 ---
 
-## 📚 Documentation
+## Privacy & Compliance
 
-- **Installation Guide**: This README
-- **User Guide**: See `docs/USER_GUIDE.md`
-- **API Documentation**: http://localhost:8000/docs (when running)
-- **Technical Details**: See `docs/TECHNICAL.md`
-
----
-
-## 🤝 Support
-
-### Common Questions
-
-**Q: Do I need an internet connection?**
-A: Only for initial download. After that, works completely offline.
-
-**Q: Can I process multiple scans at once?**
-A: Yes! Upload multiple scans and queue them.
-
-**Q: What MRI sequences are supported?**
-A: T1-weighted structural MRI (MPRAGE, SPGR, etc.)
-
-**Q: Does it work with clinical DICOM files?**
-A: Yes! Supports DICOM (.dcm) format.
-
-**Q: How accurate is the segmentation?**
-A: FastSurfer achieves comparable accuracy to FreeSurfer (gold standard) in ~5 minutes vs 8 hours.
-
-### Getting Help
-
-1. **Check logs**: `docker-compose logs -f`
-2. **Read troubleshooting section** above
-3. **Open GitHub issue**: https://github.com/phindagijimana/neuroinsight/issues
+- All processing occurs locally on your infrastructure
+- No data transmitted to external servers
+- No internet connection required after initial installation
+- Suitable for HIPAA-compliant workflows
+- Appropriate for sensitive medical data
 
 ---
 
-## 🚀 For Developers
+## Performance
 
-Want to contribute or customize NeuroInsight?
+### GPU Acceleration (Linux only)
 
-See:
-- `CONTRIBUTING.md` - Development guide
-- `docs/ARCHITECTURE.md` - System architecture
-- `docs/API.md` - API documentation
+Install NVIDIA Docker Runtime:
 
----
+```bash
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+  sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+sudo apt-get update && sudo apt-get install -y nvidia-docker2
+sudo systemctl restart docker
+```
 
-## 📄 License
-
-MIT License - See `LICENSE` file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **FastSurfer**: Deep learning-based brain segmentation
-- **FreeSurfer**: Gold standard brain MRI analysis
-- **Docker**: Containerization platform
-- Research funded by: [Your institution/grants]
+GPU will be automatically detected and utilized.
 
 ---
 
-## 📞 Contact
+## Troubleshooting
 
-- **Issues**: https://github.com/phindagijimana/neuroinsight/issues
-- **Email**: support@neuroinsight.app
-- **Website**: https://neuroinsight.app
+### Docker daemon not running
+
+**Solution:** Start Docker Desktop and wait for initialization.
+
+### Port conflicts
+
+**Solution:** Stop existing services before starting:
+```bash
+docker-compose down
+docker-compose up -d
+```
+
+### Out of memory errors
+
+**Solution:** Increase Docker Desktop memory allocation to 20GB+ (Preferences → Resources → Memory)
+
+### Processing failures
+
+**Solution:** Check worker logs:
+```bash
+docker-compose logs worker
+```
+
+**Additional help:** [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
 ---
 
-**Ready to analyze hippocampal asymmetry? Start with Step 1 above!** 🧠
+## Development
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+### API Reference
+
+Interactive documentation available at `http://localhost:8000/docs` when services are running.
+
+### Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design details.
+
+---
+
+## License
+
+MIT License - See [LICENSE](LICENSE) file for full text.
+
+---
+
+## Acknowledgments
+
+This project builds upon:
+
+- **FastSurfer** - Deep learning-based neuroimaging segmentation
+- **FreeSurfer** - Gold standard brain MRI analysis suite
+- **Docker** - Container platform for reproducible deployments
+
+---
+
+## Support
+
+**Issues and bug reports:** [GitHub Issues](https://github.com/phindagijimana/neuroinsight-web-app/issues)
+
+**Email:** support@neuroinsight.app
+
+**Institution:** University of Rochester Medical Center, Neurology Department
+
+---
+
+## Citation
+
+If you use NeuroInsight in your research, please cite:
+
+```
+[Citation information pending publication]
+```
+
+---
+
+**Version:** 1.0.0  
+**Last Updated:** November 2025

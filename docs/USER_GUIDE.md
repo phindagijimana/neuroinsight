@@ -524,3 +524,4 @@ curl http://localhost:8000/api/jobs | python -m json.tool
 
 **Ready to start?** Open [http://localhost:8000](http://localhost:8000) and upload your first MRI scan! 🧠
 
+

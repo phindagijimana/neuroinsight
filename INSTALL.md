@@ -54,31 +54,31 @@ cd neuroinsight
 # Navigate to the neuroinsight folder
 cd /path/to/neuroinsight
 
-# Create environment file (first time only)
-cp .env.example .env
+# Start everything with one command!
+./start.sh
 
-# Start NeuroInsight (creates directories automatically)
-docker-compose up -d
-
-# Open in browser (after 30 seconds)
+# Open in browser
 open http://localhost:3000
 ```
 
-### Windows (Command Prompt)
+### Windows
 ```cmd
 # Open Command Prompt
 # Navigate to the neuroinsight folder
 cd C:\path\to\neuroinsight
 
-# Create environment file (first time only)
-copy .env.example .env
+# Start everything with one command!
+start.bat
 
-# Start NeuroInsight (creates directories automatically)
-docker-compose up -d
-
-# Wait 30 seconds, then open browser to:
-# http://localhost:3000
+# Open browser to: http://localhost:3000
 ```
+
+**The startup script automatically:**
+✅ Creates `.env` file if missing  
+✅ Creates data directories  
+✅ Configures paths for your system  
+✅ Starts all services  
+✅ Shows status and URLs
 
 ---
 
@@ -98,6 +98,13 @@ Visit **http://localhost:3000** in your browser to use NeuroInsight.
 
 ## 🛑 To Stop NeuroInsight
 
+**Using startup script:**
+```bash
+./start.sh stop     # macOS/Linux
+start.bat stop      # Windows
+```
+
+**Or manually:**
 ```bash
 docker-compose down
 ```
@@ -106,6 +113,14 @@ docker-compose down
 
 ## 🔄 To Restart NeuroInsight (Next Time)
 
+**Using startup script:**
+```bash
+cd /path/to/neuroinsight
+./start.sh          # macOS/Linux
+start.bat           # Windows
+```
+
+**Or manually:**
 ```bash
 cd /path/to/neuroinsight
 docker-compose up -d
