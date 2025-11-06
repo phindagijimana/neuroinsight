@@ -2,7 +2,7 @@
 
 ## Common Build Issues and Solutions
 
-### Issue #1: "No space left on device" ✅ SOLVED
+### Issue #1: "No space left on device" (Linux) ✅ SOLVED
 
 **Error:**
 ```
@@ -44,6 +44,39 @@ And intermediate cleanup:
 - After: ~28 GB available → Build succeeds ✅
 
 **Commit:** `6a2487a` - "Fix disk space issues in CI/CD workflow"
+
+---
+
+### Issue #2: Windows pip upgrade fails ✅ SOLVED
+
+**Error:**
+```
+ERROR: To modify pip, please run the following command:
+C:\hostedtoolcache\windows\Python\3.10.11\x64\python.exe -m pip install --upgrade pip
+Error: Process completed with exit code 1.
+```
+
+**Cause:**
+- On Windows, pip cannot upgrade itself while it's running
+- Direct `pip install --upgrade pip` command fails
+- Must use `python -m pip install --upgrade pip` format
+
+**Solution Applied:**
+Changed all pip commands to use Python module format:
+
+```yaml
+# Before
+- run: pip install --upgrade pip
+
+# After
+- run: python -m pip install --upgrade pip
+```
+
+**Result:**
+- Before: pip upgrade fails on Windows ❌
+- After: pip upgrades successfully ✅
+
+**Commit:** `f934b50` - "Fix Windows pip upgrade issue"
 
 ---
 
