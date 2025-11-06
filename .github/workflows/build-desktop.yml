@@ -71,7 +71,7 @@ jobs:
       
       - name: Build Linux installers
         working-directory: desktop_alone/electron-app
-        run: npm run build:linux
+        run: npm run build:linux -- --publish never
       
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
@@ -143,7 +143,7 @@ jobs:
       
       - name: Build Windows installer
         working-directory: desktop_alone/electron-app
-        run: npm run build:win
+        run: npm run build:win -- --publish never
       
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
@@ -214,7 +214,7 @@ jobs:
       
       - name: Build macOS installer
         working-directory: desktop_alone/electron-app
-        run: npm run build:mac
+        run: npm run build:mac -- --publish never
       
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
