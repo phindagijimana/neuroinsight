@@ -8,6 +8,9 @@ This bundles the entire Python backend with all dependencies into a single execu
 import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
+# Increase recursion limit for PyInstaller analysis (needed for PyTorch)
+sys.setrecursionlimit(sys.getrecursionlimit() * 5)
+
 block_cipher = None
 
 # Collect all backend modules and data files
