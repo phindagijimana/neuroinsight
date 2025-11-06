@@ -80,6 +80,40 @@ Changed all pip commands to use Python module format:
 
 ---
 
+### Issue #3: macOS PyInstaller recursion limit ✅ SOLVED
+
+**Error:**
+```
+RecursionError: maximum recursion depth exceeded
+A RecursionError (maximum recursion depth exceeded) occurred.
+For working around please follow these instructions
+...
+Error: Process completed with exit code 1.
+```
+
+**Cause:**
+- PyInstaller imports modules recursively
+- PyTorch has a very deep dependency tree
+- Default Python recursion limit (1000) is too low
+- Analysis phase hits the limit before completing
+
+**Solution Applied:**
+Added recursion limit increase to `build.spec`:
+
+```python
+# Near the top of build.spec, after imports
+import sys
+sys.setrecursionlimit(sys.getrecursionlimit() * 5)
+```
+
+**Result:**
+- Before: RecursionError at ~115 nested imports ❌
+- After: Can handle ~660 nested imports ✅
+
+**Commit:** `fcd3f50` - "Fix macOS PyInstaller recursion limit issue"
+
+---
+
 ## Disk Space Management
 
 ### GitHub Actions Runner Specs
