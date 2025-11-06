@@ -710,14 +710,10 @@
         console.log('JobsPage mounted, loading jobs...');
         loadJobs();
         const interval = setInterval(() => {
-          if (!useMock) {
-            loadJobs();
-          } else {
-            console.log('Mock mode enabled - skipping auto refresh');
-          }
+          loadJobs();
         }, 10000); // Auto-refresh every 10 seconds
         return () => clearInterval(interval);
-      }, [useMock]);
+      }, []);
       
       // Debug: Log when jobs state changes
       useEffect(() => {
@@ -729,11 +725,6 @@
       }, [jobs]);
       
       const loadJobs = async () => {
-        if (useMock) {
-          console.log('Mock mode: loadJobs skipped');
-          setLoading(false);
-          return;
-        }
         try {
           setLoading(true);
           console.log('=== Loading Jobs ===');
