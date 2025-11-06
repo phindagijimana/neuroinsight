@@ -38,6 +38,7 @@
     "appId": "com.neuroinsight.desktop",
     "productName": "NeuroInsight",
     "copyright": "Copyright © 2025 NeuroInsight",
+    "publish": null,
     "directories": {
       "output": "dist",
       "buildResources": "build"
