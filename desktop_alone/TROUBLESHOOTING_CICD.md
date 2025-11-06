@@ -114,6 +114,42 @@ sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 
 ---
 
+### Issue #4: electron-builder auto-publish without token ✅ SOLVED
+
+**Error:**
+```
+Error: GitHub Personal Access Token is not set, neither programmatically, nor using env "GH_TOKEN"
+    at new GitHubPublisher
+Error: Process completed with exit code 1.
+```
+
+**Cause:**
+- electron-builder detects git tags and tries to auto-publish
+- `GH_TOKEN` is only available in `create-release` job, not build jobs
+- Build succeeds but fails at publish step
+
+**Solution Applied:**
+Added `publish: null` to package.json build configuration:
+
+```json
+{
+  "build": {
+    "appId": "com.neuroinsight.desktop",
+    "publish": null,  // Disable auto-publish
+    ...
+  }
+}
+```
+
+**Result:**
+- Before: Builds succeed but fail at auto-publish ❌
+- After: Builds complete without trying to publish ✅
+- Publishing handled separately in `create-release` job
+
+**Commit:** `f2ff205` - "Disable electron-builder auto-publish"
+
+---
+
 ## Disk Space Management
 
 ### GitHub Actions Runner Specs
