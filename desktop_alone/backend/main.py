@@ -7,9 +7,12 @@ including middleware, routes, and lifecycle events.
 
 from contextlib import asynccontextmanager
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.api import cleanup_router, jobs_router, metrics_router, upload_router, visualizations_router
 from backend.core import get_settings, init_db, setup_logging
@@ -145,14 +148,25 @@ app.include_router(metrics_router)
 app.include_router(visualizations_router)
 app.include_router(cleanup_router)  # Admin cleanup endpoints
 
+# Serve frontend static files in desktop mode
+if settings.desktop_mode:
+    frontend_dir = Path(__file__).parent.parent / "frontend"
+    if frontend_dir.exists():
+        app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+        logger.info("frontend_static_files_enabled", path=str(frontend_dir))
+
 
 if __name__ == "__main__":
     import uvicorn
+    import os
+    
+    # Allow port override via environment
+    port = int(os.getenv("PORT", settings.api_port))
     
     uvicorn.run(
-        "main:app",
+        "backend.main:app",
         host=settings.api_host,
-        port=settings.api_port,
+        port=port,
         reload=settings.environment == "development",
         log_level=settings.log_level.lower(),
     )

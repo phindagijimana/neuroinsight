@@ -11,7 +11,11 @@ from typing import Optional
 from uuid import UUID
 
 from backend.core.logging import get_logger
-from workers.celery_app import celery_app
+# Celery only available in server mode
+try:
+    from workers.celery_app import celery_app
+except ImportError:
+    celery_app = None
 
 logger = get_logger(__name__)
 

@@ -3,8 +3,11 @@ Core configuration module for NeuroInsight application.
 
 This module handles all application settings using Pydantic Settings,
 enabling type-safe configuration from environment variables.
+
+Supports both server mode (PostgreSQL, Celery) and desktop mode (SQLite, threading).
 """
 
+import os
 from functools import lru_cache
 from typing import List
 
@@ -19,6 +22,9 @@ class Settings(BaseSettings):
     All settings can be overridden via environment variables.
     See .env.example for a complete list of configuration options.
     """
+    
+    # Mode Detection
+    desktop_mode: bool = Field(default=False, env="DESKTOP_MODE")
     
     # Application Metadata
     app_name: str = "NeuroInsight Dev"
@@ -54,8 +60,26 @@ class Settings(BaseSettings):
     minio_use_ssl: bool = Field(default=False, env="MINIO_USE_SSL")
     
     # File Storage
-    upload_dir: str = Field(default="/data/uploads", env="UPLOAD_DIR")
-    output_dir: str = Field(default="/data/outputs", env="OUTPUT_DIR")
+    @property
+    def upload_dir(self) -> str:
+        """Upload directory - user Documents for desktop, configurable for server."""
+        if self.desktop_mode:
+            from backend.core.config_desktop import get_desktop_settings
+            desktop_settings = get_desktop_settings()
+            return str(desktop_settings.upload_dir)
+        else:
+            return os.getenv("UPLOAD_DIR", "/data/uploads")
+    
+    @property
+    def output_dir(self) -> str:
+        """Output directory - user Documents for desktop, configurable for server."""
+        if self.desktop_mode:
+            from backend.core.config_desktop import get_desktop_settings
+            desktop_settings = get_desktop_settings()
+            return str(desktop_settings.output_dir)
+        else:
+            return os.getenv("OUTPUT_DIR", "/data/outputs")
+    
     max_upload_size: int = Field(default=524288000, env="MAX_UPLOAD_SIZE")  # 500MB
     
     # Cleanup & Retention Policies
@@ -88,11 +112,18 @@ class Settings(BaseSettings):
     
     @property
     def database_url(self) -> str:
-        """Construct PostgreSQL database URL."""
-        return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
+        """Construct database URL - SQLite for desktop, PostgreSQL for server."""
+        if self.desktop_mode:
+            # Desktop mode: Use SQLite in user data directory
+            from backend.core.config_desktop import get_desktop_settings
+            desktop_settings = get_desktop_settings()
+            return desktop_settings.database_url
+        else:
+            # Server mode: Use PostgreSQL
+            return (
+                f"postgresql://{self.postgres_user}:{self.postgres_password}"
+                f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            )
     
     @property
     def redis_url(self) -> str:

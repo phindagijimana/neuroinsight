@@ -10,7 +10,6 @@ from datetime import datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import Column, DateTime, Enum, String, Text
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from backend.core.database import Base
@@ -45,11 +44,11 @@ class Job(Base):
     
     __tablename__ = "jobs"
     
-    # Primary key
+    # Primary key - String(36) for SQLite compatibility
     id = Column(
-        UUID(as_uuid=True),
+        String(36),
         primary_key=True,
-        default=uuid.uuid4,
+        default=lambda: str(uuid.uuid4()),
         index=True,
         doc="Unique job identifier"
     )
