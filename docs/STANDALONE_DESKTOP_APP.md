@@ -4,6 +4,8 @@
 
 This guide explains how to package NeuroInsight as a standalone desktop application that users can download and run **without** installing Docker, Python, or any dependencies.
 
+**Important:** See [DESKTOP_APP_WITHOUT_DOCKER.md](DESKTOP_APP_WITHOUT_DOCKER.md) for analysis of different approaches. This document describes the **recommended native Python approach**.
+
 ---
 
 ## Architecture
