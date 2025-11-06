@@ -8,6 +8,8 @@ Automated brain MRI analysis for hippocampal volume and asymmetry measurement us
 
 ### Choose Your Setup
 
+Not sure which option is right for you? See [CHOOSING_YOUR_SETUP.md](CHOOSING_YOUR_SETUP.md) for detailed comparison.
+
 **For Clinical/Research Users**
 - [Lab Access (No Installation)](#lab-access) - Simplest option for institutional users
 

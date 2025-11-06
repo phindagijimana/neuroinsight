@@ -2,6 +2,8 @@
 
 ## Which Method Should I Use?
 
+**Need help deciding?** See [CHOOSING_YOUR_SETUP.md](CHOOSING_YOUR_SETUP.md) for detailed comparison of all options.
+
 ### Lab Access (Recommended for Most Users)
 
 **Best for:** Clinical staff, researchers, students at institution
