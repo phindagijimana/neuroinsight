@@ -1,85 +1,153 @@
 # Quick Start Guide
 
-## Deployment Methods
+## Which Method Should I Use?
 
-### Method 1: SSH Tunnel (Institutional Access)
+### Lab Access (Recommended for Most Users)
 
-Access shared HPC installation without local setup.
+**Best for:** Clinical staff, researchers, students at institution
 
-**Requirements:** SSH access to institutional HPC
+**Advantages:**
+- No installation required
+- Ready to use immediately
+- Access from any computer
+- Shared infrastructure
 
-**Steps:**
+**Requirements:** Institutional account
 
-1. Open terminal
-2. Run: `ssh -L 56052:localhost:56052 username@urmc-sh.rochester.edu`
-3. Open browser to: `http://localhost:56052`
-
-**Disconnect:** Type `exit` or close terminal
-
-**Full guide:** [docs/LAB_ACCESS_GUIDE.md](docs/LAB_ACCESS_GUIDE.md)
+[Skip to Lab Access Instructions](#lab-access)
 
 ---
 
-### Method 2: Local Installation (Docker Compose)
+### Local Installation
 
-Full deployment on your own system.
+**Best for:** Personal use, offline work, development
 
-**Requirements:**
-- Docker Desktop installed
-- 16GB+ RAM
-- 30GB+ free disk space
+**Advantages:**
+- Complete control
+- Works without network access
+- Process sensitive data locally
 
-**Steps:**
+**Requirements:** Docker Desktop, 16GB+ RAM
 
-1. Clone repository:
-   ```bash
-   git clone https://github.com/phindagijimana/neuroinsight-web-app
-   cd neuroinsight-web-app
-   ```
-
-2. Start services:
-   ```bash
-   docker-compose up -d
-   ```
-
-3. Open browser to: `http://localhost:56052`
-
-**Stop services:** `docker-compose down`
-
-**Full guide:** [README.md](README.md#installation)
+[Skip to Installation Instructions](#installation)
 
 ---
 
-### Method 3: Desktop Application (Future)
+## Lab Access
 
-**Status:** In development (estimated 1-2 months)
+### Step 1: Open Terminal
 
-**Planned features:**
-- Single-click installer
-- No Docker or Python required
-- Offline operation
-- Auto-updates
+**macOS:** Press `Cmd + Space`, type "terminal", press Enter
 
-**Development plan:** [docs/STANDALONE_DESKTOP_APP.md](docs/STANDALONE_DESKTOP_APP.md)
+**Windows:** Press `Win + R`, type "cmd", press Enter
+
+**Linux:** Press `Ctrl + Alt + T`
+
+### Step 2: Connect
+
+Type this command (replace `username` with your actual username):
+
+```bash
+ssh -L 56052:localhost:56052 username@urmc-sh.rochester.edu
+```
+
+Press Enter and enter your password when prompted.
+
+### Step 3: Open Application
+
+While keeping terminal open, open your web browser and go to:
+
+```
+http://localhost:56052
+```
+
+### To Disconnect
+
+Close the terminal window or type `exit` and press Enter.
 
 ---
 
-## Recommended Method
+## Installation
 
-| User Type | Recommended Method |
-|-----------|-------------------|
-| Institutional lab members | SSH Tunnel |
-| Developers | Docker Compose |
-| Quick evaluation | SSH Tunnel |
-| Offline processing | Docker Compose |
-| Non-technical users | Desktop App (when available) |
+### Step 1: Install Docker Desktop
+
+1. Download: https://www.docker.com/products/docker-desktop
+2. Install the downloaded file
+3. Start Docker Desktop
+4. Wait for initialization (whale icon appears in system tray)
+5. **Important:** Increase memory allocation:
+   - Open Docker Desktop
+   - Go to Settings/Preferences → Resources → Memory
+   - Set to at least 20GB
+   - Click "Apply & Restart"
+
+### Step 2: Download NeuroInsight
+
+**Option A - With Git (Recommended):**
+
+```bash
+git clone https://github.com/phindagijimana/neuroinsight-web-app
+cd neuroinsight-web-app
+```
+
+**Option B - Without Git:**
+
+1. Go to: https://github.com/phindagijimana/neuroinsight-web-app
+2. Click green "Code" button
+3. Click "Download ZIP"
+4. Extract the ZIP file
+5. Open terminal in extracted folder
+
+### Step 3: Start NeuroInsight
+
+In terminal, run:
+
+```bash
+docker-compose up -d
+```
+
+Wait 2-3 minutes for services to start.
+
+### Step 4: Open Application
+
+Open browser to:
+
+```
+http://localhost:56052
+```
+
+### To Stop
+
+In terminal, run:
+
+```bash
+docker-compose down
+```
 
 ---
 
-## Support
+## First Time Use
 
-**Documentation:** [README.md](README.md)
+1. **Upload** your T1-weighted MRI scan (.nii, .nii.gz, or .dcm)
+2. **Process** - Click the process button and wait
+3. **View** results including volumes and asymmetry
+4. **Export** data as needed
 
-**Issues:** [GitHub Issues](https://github.com/phindagijimana/neuroinsight-web-app/issues)
+---
 
-**Email:** support@neuroinsight.app
+## Need Help?
+
+**Installation problems:** See [README.md](README.md#troubleshooting)
+
+**Usage questions:** See [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
+
+**Technical issues:** [Open GitHub issue](https://github.com/phindagijimana/neuroinsight-web-app/issues)
+
+---
+
+## Next Steps
+
+- Read full documentation: [README.md](README.md)
+- View example scans and results
+- Configure advanced settings
+- Set up batch processing
