@@ -86,13 +86,14 @@ else:
     )
 
 
-# Health check endpoint
-@app.get("/health", tags=["health"])
+# Health check endpoint - supports both GET and HEAD methods for wait-on compatibility
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["health"])
 async def health_check():
     """
     Health check endpoint.
     
     Returns application status and version information.
+    Supports both GET and HEAD methods for compatibility with health check libraries.
     """
     return {
         "status": "healthy",
