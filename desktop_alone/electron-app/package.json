@@ -9,6 +9,7 @@
     "email": "support@neuroinsight.app"
   },
   "license": "MIT",
+  "homepage": "https://github.com/phindagijimana/neuroinsight",
   "private": true,
   "scripts": {
     "start": "electron .",
