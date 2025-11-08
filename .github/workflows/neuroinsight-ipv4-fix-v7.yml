@@ -1,4 +1,4 @@
-name: Build Desktop (Simplified)
+name: Build Desktop (IPv4 Fix v7)
 
 on:
   push:
