@@ -41,6 +41,7 @@ structlog==23.2.0
 # Utilities
 python-dotenv==1.0.0
 aiofiles==23.2.1
+platformdirs==4.0.0
 
 # File handling
 pathlib2==2.3.7.post1
