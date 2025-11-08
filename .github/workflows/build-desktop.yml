@@ -43,7 +43,7 @@ jobs:
         working-directory: desktop_alone/electron-app
         run: |
           echo "Installing npm dependencies..."
-          npm ci
+          npm install
       
       - name: Build Electron AppImage
         working-directory: desktop_alone/electron-app
@@ -167,7 +167,7 @@ jobs:
         working-directory: desktop_alone/electron-app
         run: |
           echo "Installing npm dependencies..."
-          npm ci
+          npm install
       
       - name: Build Electron DMG
         working-directory: desktop_alone/electron-app
