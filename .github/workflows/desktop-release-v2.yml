@@ -119,21 +119,20 @@ jobs:
         working-directory: desktop_alone/electron-app/dist
         run: |
           echo "Generating checksums..."
+          echo "Files in dist directory:"
           ls -la
-          Get-ChildItem *.exe | ForEach-Object {
-            $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash
-            "$hash  $($_.Name)" | Out-File -FilePath checksums-windows.txt -Encoding ASCII -Append
-          }
-          echo "Checksum file created:"
-          Get-Content checksums-windows.txt
-        shell: powershell
+          echo "Generating SHA256 for .exe files..."
+          sha256sum NeuroInsight*.exe > checksums-windows.txt || sha256sum *Setup*.exe > checksums-windows.txt || echo "ERROR: No .exe files found!"
+          echo "Checksum file:"
+          cat checksums-windows.txt
+        shell: bash
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: neuroinsight-windows
           path: |
-            desktop_alone/electron-app/dist/NeuroInsight-Setup-*.exe
+            desktop_alone/electron-app/dist/*.exe
             desktop_alone/electron-app/dist/checksums-windows.txt
           retention-days: 30
   
