@@ -109,8 +109,7 @@
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        "AppImage"
       ],
       "icon": "build/icons",
       "category": "Science;MedicalSoftware;Education",
@@ -119,9 +118,6 @@
         "Comment": "Hippocampal Asymmetry Analysis",
         "Categories": "Science;MedicalSoftware;Education;Medical"
       }
-    },
-    "deb": {
-      "packageCategory": "science"
     }
   }
 }
