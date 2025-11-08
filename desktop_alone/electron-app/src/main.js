@@ -207,7 +207,7 @@ async function createWindow() {
     log.info('Waiting for backend to be ready...');
     
     await waitOn({
-      resources: [`http://localhost:${BACKEND_PORT}/health`],
+      resources: [`http://127.0.0.1:${BACKEND_PORT}/health`],
       timeout: 30000,  // 30 seconds
       interval: 1000,   // Check every second
     });
@@ -215,7 +215,7 @@ async function createWindow() {
     log.info('Backend is ready!');
     
     // Load the application
-    mainWindow.loadURL(`http://localhost:${BACKEND_PORT}`);
+    mainWindow.loadURL(`http://127.0.0.1:${BACKEND_PORT}`);
     
     // Show window when ready, close splash
     mainWindow.once('ready-to-show', () => {
