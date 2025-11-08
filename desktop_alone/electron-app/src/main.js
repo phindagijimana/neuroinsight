@@ -79,10 +79,11 @@ function startBackend() {
     }
     
     // Capture actual port from Uvicorn output: "Uvicorn running on http://0.0.0.0:PORT"
-    const portMatch = output.match(/Uvicorn running on http:\/\/[^:]+:(\d+)/);
+    // Match both "http://0.0.0.0:PORT" and "http://127.0.0.1:PORT"
+    const portMatch = output.match(/Uvicorn running on https?:\/\/(?:0\.0\.0\.0|127\.0\.0\.1|\[::\]):(\d+)/);
     if (portMatch && BACKEND_PORT === 0) {
       BACKEND_PORT = parseInt(portMatch[1], 10);
-      log.info(`Backend is using port: ${BACKEND_PORT}`);
+      log.info(`✅ Backend port captured: ${BACKEND_PORT}`);
       if (logger) {
         logger.info('Backend port captured', { port: BACKEND_PORT });
       }
@@ -94,6 +95,16 @@ function startBackend() {
     log.error('[Backend Error]', output);
     if (logger) {
       logger.error('Backend error output', null, { output });
+    }
+    
+    // Uvicorn also outputs to stderr, so capture port here too
+    const portMatch = output.match(/Uvicorn running on https?:\/\/(?:0\.0\.0\.0|127\.0\.0\.1|\[::\]):(\d+)/);
+    if (portMatch && BACKEND_PORT === 0) {
+      BACKEND_PORT = parseInt(portMatch[1], 10);
+      log.info(`✅ Backend port captured from stderr: ${BACKEND_PORT}`);
+      if (logger) {
+        logger.info('Backend port captured from stderr', { port: BACKEND_PORT });
+      }
     }
   });
 
