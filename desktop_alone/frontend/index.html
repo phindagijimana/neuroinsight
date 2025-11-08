@@ -57,6 +57,12 @@
     const CONFIG = {
       api: {
         baseUrl: (function() {
+          // Check if running in Electron desktop mode (window.BACKEND_URL is set by Electron)
+          if (window.BACKEND_URL) {
+            console.log('Desktop mode detected, using Electron backend URL:', window.BACKEND_URL);
+            return window.BACKEND_URL;
+          }
+          
           // Try to detect API URL - check if we're accessing via different ports
           let apiUrl = 'http://localhost:8000';
           
@@ -71,6 +77,7 @@
             apiUrl = urlParams.get('api');
           }
           
+          console.log('Web mode detected, using API URL:', apiUrl);
           return apiUrl;
         })(),
       },

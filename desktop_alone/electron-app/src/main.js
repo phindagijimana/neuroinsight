@@ -214,8 +214,26 @@ async function createWindow() {
     
     log.info('Backend is ready!');
     
-    // Load the application
-    mainWindow.loadURL(`http://127.0.0.1:${BACKEND_PORT}`);
+    // Load the frontend HTML file (bundled with Electron)
+    // The frontend/index.html is copied to the app root during build
+    const frontendPath = path.join(__dirname, '..', 'frontend', 'index.html');
+    log.info(`Loading frontend from: ${frontendPath}`);
+    
+    // First, set the backend URL before loading the page
+    // This makes it available synchronously when the page loads
+    mainWindow.loadFile(frontendPath).then(() => {
+      log.info('Frontend loaded successfully');
+    }).catch((err) => {
+      log.error('Failed to load frontend:', err);
+    });
+    
+    // Set the backend URL as a global for the frontend to use
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow.webContents.executeJavaScript(`
+        window.BACKEND_URL = 'http://127.0.0.1:${BACKEND_PORT}';
+        console.log('Backend URL set to:', window.BACKEND_URL);
+      `);
+    });
     
     // Show window when ready, close splash
     mainWindow.once('ready-to-show', () => {
