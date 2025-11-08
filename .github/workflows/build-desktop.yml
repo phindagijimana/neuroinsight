@@ -103,7 +103,9 @@ jobs:
       
       - name: Install Node dependencies
         working-directory: desktop_alone/electron-app
-        run: npm ci
+        run: |
+          echo "Installing npm dependencies..."
+          npm install
       
       - name: Build Electron installer
         working-directory: desktop_alone/electron-app
