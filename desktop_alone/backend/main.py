@@ -163,11 +163,14 @@ if __name__ == "__main__":
     # Allow port override via environment
     port = int(os.getenv("PORT", settings.api_port))
     
+    # Disable reload for desktop/production - causes "Address in use" with PyInstaller
+    should_reload = settings.environment == "development" and not settings.desktop_mode
+    
     uvicorn.run(
         "backend.main:app",
         host=settings.api_host,
         port=port,
-        reload=settings.environment == "development",
+        reload=should_reload,
         log_level=settings.log_level.lower(),
     )
 
