@@ -120,7 +120,7 @@
       }
     },
     "deb": {
-      "homepage": "https://github.com/phindagijimana/neuroinsight"
+      "packageCategory": "science"
     }
   }
 }

@@ -35,16 +35,19 @@ class MRIProcessor:
     5. Asymmetry index calculation
     """
     
-    def __init__(self, job_id: UUID):
+    def __init__(self, job_id: UUID, progress_callback=None):
         """
         Initialize MRI processor.
         
         Args:
             job_id: Unique job identifier
+            progress_callback: Optional callback function(progress: int, step: str) for progress updates
         """
         self.job_id = job_id
         self.output_dir = Path(settings.output_dir) / str(job_id)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.process_pid = None  # Track subprocess PID for cleanup
+        self.progress_callback = progress_callback
         
         # Detect GPU availability
         self.has_gpu = self._detect_gpu()
@@ -93,21 +96,33 @@ class MRIProcessor:
         logger.info("processing_pipeline_started", job_id=str(self.job_id))
         
         # Step 1: Convert to NIfTI if needed
+        if self.progress_callback:
+            self.progress_callback(17, "Preparing input file...")
         nifti_path = self._prepare_input(input_path)
         
-        # Step 2: Run FastSurfer segmentation (whole brain)
+        # Step 2: Run FastSurfer segmentation (whole brain) - LONGEST STEP
+        if self.progress_callback:
+            self.progress_callback(20, "Running FastSurfer brain segmentation (this may take a while)...")
         fastsurfer_output = self._run_fastsurfer(nifti_path)
         
         # Step 3: Extract hippocampal volumes (from FastSurfer outputs only)
+        if self.progress_callback:
+            self.progress_callback(65, "Extracting hippocampal volumes...")
         hippocampal_stats = self._extract_hippocampal_data(fastsurfer_output)
         
         # Step 4: Calculate asymmetry indices
+        if self.progress_callback:
+            self.progress_callback(70, "Calculating asymmetry indices...")
         metrics = self._calculate_asymmetry(hippocampal_stats)
         
         # Step 5: Generate segmentation visualizations
+        if self.progress_callback:
+            self.progress_callback(75, "Generating visualizations...")
         visualization_paths = self._generate_visualizations(nifti_path, fastsurfer_output)
         
         # Step 6: Save results
+        if self.progress_callback:
+            self.progress_callback(82, "Saving results...")
         self._save_results(metrics)
         
         logger.info(
@@ -352,6 +367,8 @@ class MRIProcessor:
             Path to FastSurfer output directory
         """
         import shutil
+        import os
+        import signal
         
         logger.info("running_fastsurfer_singularity", input=str(nifti_path))
         
@@ -387,7 +404,6 @@ class MRIProcessor:
         device = "cuda" if self.has_gpu else "cpu"
         
         # Threading
-        import os
         cpu_count = os.cpu_count() or 4
         num_threads = max(1, cpu_count - 2) if device == "cpu" else 1
         
@@ -432,20 +448,61 @@ class MRIProcessor:
             note="Running FastSurfer with Singularity"
         )
         
-        # Execute Singularity
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=7200)
-        
-        if result.returncode != 0:
-            logger.error(
-                "fastsurfer_singularity_failed",
-                returncode=result.returncode,
-                stderr=result.stderr[:500] if result.stderr else "No stderr",
-                stdout=result.stdout[:500] if result.stdout else "No stdout"
+        # Execute Singularity with proper process group management
+        # Using Popen instead of run() to track PID and manage process group
+        process = None
+        try:
+            # Create a new process group so we can kill all child processes
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                preexec_fn=os.setsid,  # Create new process group
             )
-            raise RuntimeError(f"FastSurfer Singularity failed: {result.stderr}")
-        
-        logger.info("fastsurfer_singularity_completed", output_dir=str(fastsurfer_dir))
-        return fastsurfer_dir
+            
+            # Store the process PID for cleanup tracking
+            self._store_process_pid(process.pid)
+            logger.info("process_started", pid=process.pid, pgid=os.getpgid(process.pid))
+            
+            # Wait for process with timeout
+            try:
+                stdout, stderr = process.communicate(timeout=7200)
+                returncode = process.returncode
+            except subprocess.TimeoutExpired:
+                logger.warning("process_timeout_killing_group", pid=process.pid)
+                # Kill entire process group
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    process.wait(timeout=10)
+                except:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                raise
+            finally:
+                self._clear_process_pid()
+            
+            if returncode != 0:
+                logger.error(
+                    "fastsurfer_singularity_failed",
+                    returncode=returncode,
+                    stderr=stderr[:500] if stderr else "No stderr",
+                    stdout=stdout[:500] if stdout else "No stdout"
+                )
+                raise RuntimeError(f"FastSurfer Singularity failed: {stderr}")
+            
+            logger.info("fastsurfer_singularity_completed", output_dir=str(fastsurfer_dir))
+            return fastsurfer_dir
+            
+        except Exception as e:
+            # Ensure cleanup of process group on any error
+            if process and process.poll() is None:
+                logger.warning("cleaning_up_process_group_on_error", pid=process.pid)
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except:
+                    pass
+            self._clear_process_pid()
+            raise
     
     def _create_mock_fastsurfer_output(self, output_dir: Path) -> None:
         """
@@ -623,17 +680,17 @@ class MRIProcessor:
                 )
                 viz_paths["whole_hippocampus"] = whole_hippo
                 
-                # Generate overlay images with hippocampus highlighted
+                # Generate overlay images for ALL 3 orientations
                 # Use orig.mgz converted T1 to ensure proper spatial alignment with segmentation
                 # FreeSurfer labels: 17 = Left-Hippocampus, 53 = Right-Hippocampus
-                overlays = visualization.generate_segmentation_overlays(
+                all_overlays = visualization.generate_all_orientation_overlays(
                     t1_nifti,  # Use orig.mgz converted (in same space as segmentation)
                     aseg_nii,
                     viz_dir / "overlays",
                     prefix="hippocampus",
                     specific_labels=[17, 53]  # Highlight hippocampus only
                 )
-                viz_paths["overlays"]["whole"] = overlays
+                viz_paths["overlays"] = all_overlays
             
             # Prepare subfields for viewer
             if subfields_nii and subfields_nii.exists():
@@ -660,6 +717,29 @@ class MRIProcessor:
             logger.error("visualization_generation_failed", error=str(e))
         
         return viz_paths
+    
+    def _store_process_pid(self, pid: int) -> None:
+        """
+        Store the process PID for tracking and cleanup.
+        
+        Writes PID to a file so we can kill zombie processes later.
+        
+        Args:
+            pid: Process ID to store
+        """
+        self.process_pid = pid
+        pid_file = self.output_dir / ".process_pid"
+        with open(pid_file, "w") as f:
+            f.write(str(pid))
+        logger.info("process_pid_stored", pid=pid, file=str(pid_file))
+    
+    def _clear_process_pid(self) -> None:
+        """Clear stored process PID after completion."""
+        self.process_pid = None
+        pid_file = self.output_dir / ".process_pid"
+        if pid_file.exists():
+            pid_file.unlink()
+            logger.info("process_pid_cleared")
     
     def _save_results(self, metrics: List[Dict]) -> None:
         """

@@ -146,6 +146,18 @@ class JobResponse(BaseModel):
         description="Output directory path"
     )
     
+    progress: int = Field(
+        default=0,
+        description="Processing progress percentage (0-100)",
+        ge=0,
+        le=100
+    )
+    
+    current_step: Optional[str] = Field(
+        None,
+        description="Current processing step description"
+    )
+    
     metrics: List[MetricSummary] = Field(
         default=[],
         description="Associated hippocampal metrics"

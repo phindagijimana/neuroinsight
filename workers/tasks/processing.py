@@ -7,15 +7,40 @@ MRI processing pipeline.
 
 from uuid import UUID
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from backend.core.database import SessionLocal
 from backend.core.logging import get_logger
+from backend.models.job import Job
 from backend.services import JobService, MetricService, StorageService
 from pipeline.processors import MRIProcessor
 from workers.celery_app import celery_app
 
 logger = get_logger(__name__)
+
+
+def update_job_progress(db: Session, job_id: UUID, progress: int, current_step: str):
+    """
+    Update job progress and current step description.
+    
+    Args:
+        db: Database session
+        job_id: Job identifier
+        progress: Progress percentage (0-100)
+        current_step: Description of current processing step
+    """
+    try:
+        db.execute(
+            update(Job)
+            .where(Job.id == job_id)
+            .values(progress=progress, current_step=current_step)
+        )
+        db.commit()
+        logger.info("progress_updated", job_id=str(job_id), progress=progress, step=current_step)
+    except Exception as e:
+        logger.warning("progress_update_failed", job_id=str(job_id), error=str(e))
+        db.rollback()
 
 
 @celery_app.task(
@@ -72,6 +97,9 @@ def process_mri_task(self, job_id: str):
             logger.error("job_not_found_after_check", job_id=job_id)
             raise ValueError(f"Job {job_id} not found")
         
+        # Update progress: Job started
+        update_job_progress(db, job_uuid, 5, "Job started - preparing file...")
+        
         # Get file path from storage (with Celery auto-retry on transient S3 delays)
         storage_service = StorageService()
         try:
@@ -88,8 +116,19 @@ def process_mri_task(self, job_id: str):
         
         logger.info("processing_started", job_id=job_id, file_path=file_path)
         
-        # Initialize processor
-        processor = MRIProcessor(job_uuid)
+        # Update progress: File retrieved
+        update_job_progress(db, job_uuid, 10, "File retrieved - initializing processor...")
+        
+        # Define progress callback for detailed tracking inside processor
+        def progress_callback(progress: int, step: str):
+            """Callback for processor to update job progress."""
+            update_job_progress(db, job_uuid, progress, step)
+        
+        # Initialize processor with progress callback
+        processor = MRIProcessor(job_uuid, progress_callback=progress_callback)
+        
+        # Update progress: Starting brain segmentation
+        update_job_progress(db, job_uuid, 15, "Starting brain segmentation (FastSurfer)...")
         
         # Run processing pipeline
         try:
@@ -129,6 +168,9 @@ def process_mri_task(self, job_id: str):
                     "message": "Job was cancelled after processing completed"
                 }
             
+            # Update progress: Processing complete, saving results
+            update_job_progress(db, job_uuid, 85, "Processing complete - saving metrics...")
+            
             logger.info(
                 "processing_completed",
                 job_id=job_id,
@@ -137,6 +179,20 @@ def process_mri_task(self, job_id: str):
             
             # Store metrics in database
             from backend.schemas import MetricCreate
+            from backend.models.metric import Metric
+            
+            # Delete existing metrics for this job (in case of reprocessing)
+            # This prevents duplicate metrics if a job is rerun
+            existing_metrics_count = db.query(Metric).filter(Metric.job_id == job_uuid).count()
+            if existing_metrics_count > 0:
+                logger.info(
+                    "clearing_existing_metrics",
+                    job_id=job_id,
+                    count=existing_metrics_count,
+                    reason="Job is being reprocessed"
+                )
+                db.query(Metric).filter(Metric.job_id == job_uuid).delete()
+                db.commit()
             
             metrics_data = [
                 MetricCreate(
@@ -151,8 +207,14 @@ def process_mri_task(self, job_id: str):
             
             MetricService.create_metrics_bulk(db, metrics_data)
             
-            # Mark job as completed
+            # Update progress: Finalizing
+            update_job_progress(db, job_uuid, 95, "Finalizing results...")
+            
+            # Mark job as completed (this will set progress to 100)
             JobService.complete_job(db, job_uuid, results["output_dir"])
+            
+            # Update progress: Complete
+            update_job_progress(db, job_uuid, 100, "Complete")
             
             logger.info("task_completed", job_id=job_id)
             

@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Column, DateTime, Enum, String, Text
+from sqlalchemy import Column, DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from backend.core.database import Base
@@ -107,6 +107,20 @@ class Job(Base):
         Text,
         nullable=True,
         doc="Path to processing output directory"
+    )
+    
+    # Progress tracking
+    progress = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        doc="Processing progress percentage (0-100)"
+    )
+    
+    current_step = Column(
+        String(255),
+        nullable=True,
+        doc="Current processing step description"
     )
     
     # Relationships
