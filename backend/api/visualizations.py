@@ -235,15 +235,19 @@ def get_subfields_metadata(
 def get_overlay_image(
     job_id: UUID,
     slice_id: str,  # "slice_00", "slice_01", etc.
+    orientation: str = "axial",  # "axial", "coronal", or "sagittal"
+    layer: str = "overlay",  # "anatomical", "overlay", or "combined" (legacy)
     seg_type: str = "whole",  # "whole" or "subfields"
     db: Session = Depends(get_db),
 ):
     """
-    Get PNG overlay image for a specific slice.
+    Get PNG image for a specific slice and orientation.
     
     Args:
         job_id: Job identifier
         slice_id: Slice identifier (e.g., "slice_00", "slice_01")
+        orientation: View orientation ('axial', 'coronal', or 'sagittal')
+        layer: Image layer ('anatomical' for base T1, 'overlay' for segmentation, 'combined' for legacy merged)
         seg_type: Segmentation type (whole or subfields)
         db: Database session dependency
     
@@ -253,26 +257,47 @@ def get_overlay_image(
     Raises:
         HTTPException: If job not found or file missing
     """
+    # Validate orientation
+    if orientation not in ['axial', 'coronal', 'sagittal']:
+        raise HTTPException(status_code=400, detail=f"Invalid orientation: {orientation}")
+    
+    # Validate layer
+    if layer not in ['anatomical', 'overlay', 'combined']:
+        raise HTTPException(status_code=400, detail=f"Invalid layer: {layer}. Must be 'anatomical', 'overlay', or 'combined'")
+    
     job = JobService.get_job(db, job_id)
     
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    viz_dir = Path(settings.output_dir) / str(job_id) / "visualizations" / "overlays"
+    # Path includes orientation subdirectory
+    viz_dir = Path(settings.output_dir) / str(job_id) / "visualizations" / "overlays" / orientation
     
-    if seg_type == "whole":
-        image_path = viz_dir / f"hippocampus_{slice_id}.png"
-    else:
-        image_path = viz_dir / f"subfields_{slice_id}.png"
+    # Determine image filename based on layer and seg_type
+    if layer == "anatomical":
+        # Anatomical base layer (same for both whole and subfields)
+        image_path = viz_dir / f"anatomical_{slice_id}.png"
+    elif layer == "overlay":
+        # Overlay layer (transparent PNG with segmentation)
+        if seg_type == "whole":
+            image_path = viz_dir / f"hippocampus_overlay_{slice_id}.png"
+        else:
+            image_path = viz_dir / f"subfields_overlay_{slice_id}.png"
+    else:  # combined (legacy support)
+        # Old combined format (for backward compatibility)
+        if seg_type == "whole":
+            image_path = viz_dir / f"hippocampus_{slice_id}.png"
+        else:
+            image_path = viz_dir / f"subfields_{slice_id}.png"
     
     if not image_path.exists():
-        raise HTTPException(status_code=404, detail="Overlay image not found")
+        raise HTTPException(status_code=404, detail=f"Image not found: {layer} layer for {orientation} orientation")
     
-    logger.info("serving_overlay_image", job_id=str(job_id), slice=slice_id, type=seg_type)
+    logger.info("serving_image_layer", job_id=str(job_id), slice=slice_id, orientation=orientation, layer=layer, type=seg_type)
     
     return FileResponse(
         path=image_path,
         media_type="image/png",
-        filename=f"{job_id}_{seg_type}_{slice_id}.png"
+        filename=f"{job_id}_{orientation}_{layer}_{seg_type}_{slice_id}.png"
     )
 

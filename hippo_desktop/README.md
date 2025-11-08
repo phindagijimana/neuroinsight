@@ -1,16 +1,20 @@
-# NeuroInsight Desktop
+# NeuroInsight Desktop Application
 
-Professional desktop application for hippocampal asymmetry analysis.
+Electron-based desktop application for hippocampal asymmetry analysis.
 
-## For End Users
+---
 
-**Download**: https://github.com/phindagijimana/neuroinsight/releases
+## End Users
 
-See **QUICK_START.md** for installation instructions.
+**Download:** [GitHub Releases](https://github.com/phindagijimana/neuroinsight/releases)
 
-## For Developers
+**Quick Start:** See [QUICK_START.md](QUICK_START.md)
 
-### Development
+---
+
+## Developers
+
+### Development Setup
 
 ```bash
 cd hippo_desktop
@@ -23,119 +27,161 @@ npm run dev
 ```bash
 npm run dist          # Current platform
 npm run dist:mac      # macOS DMG
-npm run dist:win      # Windows installer
-npm run dist:linux    # Linux AppImage/deb/rpm
+npm run dist:win      # Windows NSIS/Portable
+npm run dist:linux    # AppImage/deb/rpm
 ```
+
+### Output
+
+Installers created in `dist/` directory.
+
+---
 
 ## Architecture
 
-Electron application that manages Docker containers for the NeuroInsight web application.
+### Overview
+
+Electron application managing Docker containers for NeuroInsight web application.
 
 ### Components
-- **Main Process** (`src/main.js`): Application lifecycle, Docker management
-- **Renderer**: Loads NeuroInsight web UI
-- **Docker Manager**: Auto-starts and manages services
-- **System Tray**: Quick access menu
 
-### How It Works
+**Main Process** (`src/main.js`)
+- Application lifecycle management
+- Docker service orchestration
+- System tray integration
+
+**Renderer Process**
+- Loads NeuroInsight web interface
+- Displays processing status
+
+**Docker Manager**
+- Auto-starts required services
+- Monitors container health
+
+### Workflow
 
 ```
-User launches app
-  ↓
-Check Docker Desktop
-  ↓
-Start services (docker-compose)
-  ↓
-Open NeuroInsight window
-  ↓
-Process MRI scans
+Launch Application
+    ↓
+Verify Docker Desktop
+    ↓
+Start Services (docker-compose)
+    ↓
+Load Web Interface
+    ↓
+Process MRI Scans
 ```
+
+---
 
 ## System Requirements
 
-**Minimum**: 4 cores, 16GB RAM, 30GB disk
-**Recommended**: 8+ cores, 32GB RAM, 100GB SSD, NVIDIA GPU
+**Minimum:**
+- 4 CPU cores
+- 16GB RAM
+- 30GB disk space
+- Docker Desktop
 
-See QUICK_START.md for detailed requirements.
+**Recommended:**
+- 8+ CPU cores
+- 32GB RAM
+- 100GB SSD
+- NVIDIA GPU (optional)
+
+---
 
 ## Project Structure
 
 ```
 hippo_desktop/
-├── src/                  # Electron source
-│   ├── main.js          # Main process
-│   ├── preload.js       # IPC bridge
-│   ├── managers/        # Docker & services
-│   └── utils/           # System checks
-├── assets/               # Icons
-├── build/                # Platform icons
-├── config/               # Configuration
-├── package.json          # Build config
-└── *.md                  # Documentation
+├── src/
+│   ├── main.js           # Main process
+│   ├── preload.js        # IPC bridge
+│   ├── managers/         # Service managers
+│   └── utils/            # System utilities
+├── assets/               # Application assets
+├── build/                # Platform-specific icons
+├── config/               # Configuration files
+└── package.json          # Build configuration
 ```
 
-## Building for Production
+---
 
-### Requirements
+## Production Builds
+
+### Prerequisites
+
 - Node.js 18+
 - Docker Desktop (for testing)
-- Icon files (already created in `build/`)
+- Platform-specific icons (in `build/`)
 
 ### Build Process
 
-1. **Check requirements**:
+1. **Verify requirements:**
    ```bash
    npm run check-requirements
    ```
 
-2. **Build**:
+2. **Build installer:**
    ```bash
    npm run dist
    ```
 
-3. **Test installer** on clean system
+3. **Test on clean system**
 
-4. **Upload to GitHub Releases** (or use GitHub Actions - automatic!)
+4. **Distribute via GitHub Releases**
 
-## Automatic Builds (GitHub Actions)
+---
 
-The repository includes GitHub Actions workflow that automatically builds installers when you create a release tag:
+## Automated Builds
+
+GitHub Actions automatically builds installers when release tags are pushed:
 
 ```bash
 git tag -a v1.1.0 -m "Release v1.1.0"
 git push origin v1.1.0
 ```
 
-Builds complete in ~15-20 minutes, installers uploaded automatically.
+Installers uploaded to GitHub Releases automatically.
 
-## Icons
+---
 
-All platform icons are in `build/`:
+## Platform Support
+
+### Icons
+
+Platform-specific icons in `build/`:
 - `icon.icns` - macOS
 - `icon.ico` - Windows
-- `icons/*.png` - Linux (7 sizes)
+- `icons/*.png` - Linux (multiple sizes)
 
-See ICON_GUIDE.md for customization.
+See [ICON_GUIDE.md](ICON_GUIDE.md) for customization.
 
-## Testing on HPC
+### Testing
 
-**Note**: This desktop app requires a GUI environment. It cannot run on headless HPC servers. Test on a desktop/laptop machine with Docker Desktop.
+**Note:** Desktop application requires GUI environment. Cannot run on headless servers.
+
+Test on desktop/laptop with Docker Desktop installed.
+
+---
 
 ## Customization
 
-### App Name/Branding
+### Branding
+
 Edit `package.json`:
 ```json
 {
-  "name": "your-app-name",
-  "productName": "Your Product Name",
+  "name": "application-name",
+  "productName": "Application Display Name",
   "build": {
-    "appId": "com.yourcompany.yourapp"
+    "appId": "com.company.application"
   }
 }
 ```
 
 ### System Requirements
+
 Edit `src/utils/SystemChecker.js`:
 ```javascript
 this.requirements = {
@@ -145,9 +191,23 @@ this.requirements = {
 };
 ```
 
+---
+
+## Documentation
+
+- **User Guide:** [QUICK_START.md](QUICK_START.md)
+- **Development:** [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md)
+- **Icon Creation:** [ICON_GUIDE.md](ICON_GUIDE.md)
+
+---
+
 ## Support
 
-- **User Guide**: QUICK_START.md
-- **Development**: DEVELOPMENT_GUIDE.md
-- **Icon Creation**: ICON_GUIDE.md
-- **Issues**: https://github.com/phindagijimana/neuroinsight/issues
+**Issues:** [GitHub Issues](https://github.com/phindagijimana/neuroinsight/issues)
+
+**Email:** support@neuroinsight.app
+
+---
+
+**Current Version:** 1.0.5  
+**Last Updated:** November 2025

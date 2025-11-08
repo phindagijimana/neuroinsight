@@ -1,4 +1,13 @@
 services:
+  # Initialize directories
+  init:
+    image: busybox
+    container_name: neuroinsight-init
+    command: sh -c "mkdir -p /data/uploads /data/outputs /data/logs && chmod -R 777 /data"
+    volumes:
+      - ./data:/data
+    restart: "no"
+
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
@@ -73,11 +82,13 @@ services:
       - ./backend:/app/backend
       - ./workers:/app/workers
       - ./pipeline:/app/pipeline
-      - ${PWD}/data/uploads:/data/uploads
-      - ${PWD}/data/outputs:/data/outputs
+      - ./data/uploads:/data/uploads
+      - ./data/outputs:/data/outputs
     ports:
       - "8000:8000"
     depends_on:
+      init:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       redis:
@@ -95,6 +106,7 @@ services:
 
   # Celery Worker
   worker:
+    platform: linux/amd64  # Force x86_64 for FastSurfer compatibility (works on ARM via emulation)
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
@@ -105,20 +117,20 @@ services:
       POSTGRES_HOST: db
       REDIS_HOST: redis
       MINIO_ENDPOINT: minio:9000
-      # Pass absolute host paths for Docker-in-Docker volume mounting
-      PWD: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo
-      HOST_UPLOAD_PATH: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/uploads
-      HOST_OUTPUT_PATH: /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/outputs
+      # Pass absolute host paths for Docker-in-Docker
+      # Docker Compose auto-resolves relative paths, we extract them from container
+      HOST_UPLOAD_DIR: ${HOST_UPLOAD_DIR}
+      HOST_OUTPUT_DIR: ${HOST_OUTPUT_DIR}
     volumes:
       - ./backend:/app/backend
       - ./workers:/app/workers
       - ./pipeline:/app/pipeline
-      # Use bind mounts with absolute paths for Docker-in-Docker compatibility
-      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/uploads:/data/uploads
-      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/data/outputs:/data/outputs
-      - /Users/pndagiji/Documents/Full-time/SoftwareDev/software_work/general_code/hippo/license.txt:/freesurfer/license.txt:ro  # FreeSurfer license
+      - ./data/uploads:/data/uploads
+      - ./data/outputs:/data/outputs
       - /var/run/docker.sock:/var/run/docker.sock  # For FastSurfer container access
     depends_on:
+      init:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
       redis:
@@ -139,7 +151,7 @@ services:
       dockerfile: docker/Dockerfile.frontend
     container_name: neuroinsight-frontend
     ports:
-      - "5173:80"
+      - "3000:80"
     depends_on:
       - backend
     networks:

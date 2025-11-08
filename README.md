@@ -1,113 +1,254 @@
 # NeuroInsight
 
-**Automated hippocampal asymmetry analysis from T1-weighted MRI scans**
-
-Fast, accurate brain segmentation with GPU acceleration using FastSurfer.
-
-## Quick Start
-
-### Desktop App (Recommended)
-
-**Download**: [Latest Release](https://github.com/phindagijimana/neuroinsight/releases)
-
-- **macOS**: Download `.zip`, extract, drag to Applications, right-click → Open
-- **Windows**: Download `.exe`, run installer
-- **Linux**: Download `.AppImage`, make executable, run
-
-**Requirements**: 4+ cores, 16GB RAM, 30GB storage, Docker Desktop
-
-### Web Application (For Servers/HPC)
-
-```bash
-git clone https://github.com/phindagijimana/neuroinsight.git
-cd neuroinsight
-docker-compose up -d
-```
-
-Open http://localhost:3000
-
-## Features
-
-- **Automated Processing**: Upload MRI scan → get results in minutes
-- **FastSurfer Segmentation**: Whole-brain segmentation with hippocampal subfields
-- **Asymmetry Analysis**: AI = (Left - Right) / (Left + Right)
-- **GPU Acceleration**: 10-20x faster with NVIDIA GPU (optional)
-- **Interactive Viewer**: Real-time 3D visualization
-- **Offline**: 100% local processing (HIPAA-compatible)
-
-## How It Works
-
-1. Upload T1-weighted MRI (`.nii`, `.nii.gz`, or `.dcm`)
-2. FastSurfer performs brain segmentation
-3. Extract hippocampal volumes (left/right)
-4. Calculate asymmetry index
-5. View 3D overlays and charts
-6. Export results (JSON/CSV)
-
-## System Requirements
-
-**Minimum** (CPU mode):
-- 4 cores, 16GB RAM, 30GB storage
-- Processing: ~40-60 min/scan
-
-**Recommended** (GPU mode):
-- 8+ cores, 32GB RAM, 100GB SSD
-- NVIDIA GPU (8GB+ VRAM)
-- Processing: ~2-5 min/scan
-
-## Technology
-
-- **Backend**: FastAPI, PostgreSQL, Redis, Celery, MinIO
-- **Frontend**: React, Vite, Tailwind CSS, Plotly, NiiVue
-- **Processing**: FastSurfer, Singularity/Docker
-- **Desktop**: Electron, Docker Compose
-
-## Documentation
-
-- [Desktop Quick Start](hippo_desktop/QUICK_START.md)
-- [Development Guide](hippo_desktop/README.md)
-- [Contributing](CONTRIBUTING.md)
-
-## Architecture
-
-```
-┌─────────────┐
-│   Upload    │ → NIfTI/DICOM scan
-└──────┬──────┘
-       ↓
-┌─────────────┐
-│  FastSurfer │ → Whole-brain segmentation (GPU/CPU)
-└──────┬──────┘
-       ↓
-┌─────────────┐
-│  Analysis   │ → Volume measurements + asymmetry
-└──────┬──────┘
-       ↓
-┌─────────────┐
-│   Results   │ → 3D viewer, charts, exports
-└─────────────┘
-```
-
-## Clinical Interpretation
-
-**Asymmetry Index (AI)**:
-- **AI > 0.047**: Left-dominant (possible right hippocampal sclerosis)
-- **AI < -0.068**: Right-dominant (possible left hippocampal sclerosis)
-- **-0.068 to 0.047**: Balanced (normal range)
-
-## Support
-
-- **Issues**: https://github.com/phindagijimana/neuroinsight/issues
-- **Discussions**: https://github.com/phindagijimana/neuroinsight/discussions
-
-## License
-
-MIT License - See [LICENSE](LICENSE) for details
-
-## Acknowledgments
-
-Built with [FastSurfer](https://github.com/Deep-MI/FastSurfer) for deep learning-based brain MRI segmentation.
+Automated brain MRI analysis for hippocampal volume and asymmetry measurement using deep learning.
 
 ---
 
-**Ready to start?** [Download the latest release](https://github.com/phindagijimana/neuroinsight/releases) or [try the web version](#web-application-for-servershpc)!
+## Getting Started
+
+### Choose Your Setup
+
+Not sure which option is right for you? See [CHOOSING_YOUR_SETUP.md](CHOOSING_YOUR_SETUP.md) for detailed comparison.
+
+**For Clinical/Research Users**
+- [Lab Access (No Installation)](#lab-access) - Simplest option for institutional users
+
+**For Local Installation**
+- [Docker Installation](#docker-installation) - Run on your own computer
+
+**For Developers**
+- [Development Setup](#development) - Full development environment
+
+---
+
+## Lab Access
+
+Access the shared installation via secure tunnel. No software installation required.
+
+### Requirements
+- Institutional HPC account
+- Terminal or SSH client
+
+### Steps
+
+1. Open terminal (Command Prompt on Windows)
+2. Connect to server:
+   ```bash
+   ssh -L 56052:localhost:56052 username@urmc-sh.rochester.edu
+   ```
+3. Open browser: `http://localhost:56052`
+
+**Disconnect:** Close terminal or type `exit`
+
+---
+
+## Docker Installation
+
+Install and run NeuroInsight on your local computer.
+
+### Requirements
+
+- Docker Desktop ([download](https://www.docker.com/products/docker-desktop))
+- 16GB RAM minimum (32GB recommended)
+- 30GB free disk space
+- Windows 10+, macOS 10.15+, or Linux
+
+### Installation
+
+1. **Install Docker Desktop**
+   - Download and install from link above
+   - Start Docker and wait for it to initialize
+   - Increase memory to 20GB (Settings → Resources → Memory)
+
+2. **Download NeuroInsight**
+   ```bash
+   git clone https://github.com/phindagijimana/neuroinsight-web-app
+   cd neuroinsight-web-app
+   ```
+
+3. **Start Application**
+   ```bash
+   docker-compose up -d
+   ```
+   
+4. **Access Application**
+   
+   Open browser: `http://localhost:56052`
+
+### Stopping
+
+```bash
+docker-compose down
+```
+
+---
+
+## Using NeuroInsight
+
+### 1. Upload Scan
+
+- Supported formats: `.nii`, `.nii.gz`, `.dcm` (DICOM)
+- File type: T1-weighted structural MRI
+
+### 2. Process
+
+- Click "Process" button
+- Wait for completion (1-60 minutes depending on system)
+
+### 3. View Results
+
+- Hippocampal volumes (left and right)
+- Asymmetry index
+- 3D visualization
+- Statistical analysis
+
+### 4. Export
+
+- Download results as JSON or CSV
+- Save visualizations as images
+- Generate reports
+
+---
+
+## System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| CPU | 4 cores | 8+ cores |
+| RAM | 16 GB | 32 GB |
+| Storage | 30 GB | 100 GB |
+| GPU | Not required | NVIDIA GPU (faster) |
+
+**Processing Time:**
+- With GPU: 1-3 minutes per scan
+- CPU only: 40-60 minutes per scan
+
+---
+
+## Platform Support
+
+| Platform | Docker Method | Lab Access |
+|----------|--------------|------------|
+| Linux | Recommended | Yes |
+| macOS Intel | Supported | Yes |
+| macOS Apple Silicon | Limited* | Yes |
+| Windows | Expected** | Yes |
+
+*Requires 20GB+ RAM allocation, slower performance  
+**Untested but should work
+
+---
+
+## Clinical Applications
+
+NeuroInsight analyzes hippocampal asymmetry, relevant for:
+
+- Temporal lobe epilepsy
+- Alzheimer's disease
+- Memory disorders
+- Hippocampal sclerosis
+- Neurodevelopmental conditions
+
+**Note:** For research use. Clinical decisions require professional medical evaluation.
+
+---
+
+## Privacy
+
+- All data processed locally on your system
+- No internet connection required after installation
+- No data transmitted to external servers
+- Suitable for protected health information
+
+---
+
+## Troubleshooting
+
+**"Cannot connect to Docker"**
+- Ensure Docker Desktop is running
+- Look for Docker icon in system tray/menu bar
+
+**"Out of memory"**
+- Increase Docker memory allocation to 20GB+
+- Close other applications
+
+**"Port already in use"**
+- Stop and restart services:
+  ```bash
+  docker-compose down
+  docker-compose up -d
+  ```
+
+**Processing fails or takes too long**
+- Check system meets minimum requirements
+- View logs: `docker-compose logs worker`
+
+---
+
+## Documentation
+
+- **Quick Start:** [QUICK_START.md](QUICK_START.md)
+- **Lab Access Guide:** [docs/LAB_ACCESS_GUIDE.md](docs/LAB_ACCESS_GUIDE.md)
+- **Platform Testing:** [TEST_BOTH_VERSIONS.md](TEST_BOTH_VERSIONS.md)
+- **API Reference:** `http://localhost:8000/docs` (when running)
+
+---
+
+## Development
+
+### Setup
+
+```bash
+git clone https://github.com/phindagijimana/neuroinsight-web-app
+cd neuroinsight-web-app
+docker-compose up -d
+```
+
+### Architecture
+
+- **Frontend:** Vite + JavaScript (Port 56052)
+- **Backend:** FastAPI (Port 8000)
+- **Worker:** Celery + FastSurfer
+- **Database:** PostgreSQL
+- **Queue:** Redis
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+
+---
+
+## Support
+
+**Common Issues:** See [Troubleshooting](#troubleshooting) section above
+
+**GitHub Issues:** [Report bugs or request features](https://github.com/phindagijimana/neuroinsight-web-app/issues)
+
+**Email:** support@neuroinsight.app
+
+---
+
+## Citation
+
+If using NeuroInsight in research, please cite:
+
+```
+[Citation information to be added upon publication]
+```
+
+---
+
+## License
+
+MIT License - See [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+Built using FastSurfer deep learning neuroimaging segmentation, comparable to FreeSurfer accuracy in significantly less processing time.
+
+---
+
+**Version:** 1.0.0  
+**Institution:** University of Rochester Medical Center
