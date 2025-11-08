@@ -1,4 +1,4 @@
-name: Build Desktop (Production v8)
+name: Build Desktop (Production v9 - FINAL)
 
 on:
   push:
