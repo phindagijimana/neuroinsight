@@ -148,12 +148,15 @@ app.include_router(metrics_router)
 app.include_router(visualizations_router)
 app.include_router(cleanup_router)  # Admin cleanup endpoints
 
-# Serve frontend static files in desktop mode
-if settings.desktop_mode:
+# Serve frontend static files ONLY in web mode
+# In desktop mode, Electron serves the frontend
+if not settings.desktop_mode:
     frontend_dir = Path(__file__).parent.parent / "frontend"
     if frontend_dir.exists():
         app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
         logger.info("frontend_static_files_enabled", path=str(frontend_dir))
+else:
+    logger.info("desktop_mode_enabled", message="Frontend served by Electron, not mounting static files")
 
 
 if __name__ == "__main__":
