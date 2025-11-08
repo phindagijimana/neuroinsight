@@ -160,11 +160,20 @@ if __name__ == "__main__":
     import uvicorn
     import os
     
-    # Allow port override via environment
+    # Dynamic port selection for desktop mode
+    # PORT=0 means OS assigns available port automatically
     port = int(os.getenv("PORT", settings.api_port))
     
     # Disable reload for desktop/production - causes "Address in use" with PyInstaller
     should_reload = settings.environment == "development" and not settings.desktop_mode
+    
+    logger.info(
+        "starting_uvicorn",
+        host=settings.api_host,
+        port=port,
+        reload=should_reload,
+        desktop_mode=settings.desktop_mode
+    )
     
     uvicorn.run(
         "backend.main:app",

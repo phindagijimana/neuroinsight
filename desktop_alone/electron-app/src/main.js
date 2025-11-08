@@ -26,7 +26,7 @@ try {
 
 let mainWindow = null;
 let backendProcess = null;
-const BACKEND_PORT = 8000;
+let BACKEND_PORT = 0; // 0 = OS assigns available port dynamically
 
 /**
  * Get path to bundled backend executable
@@ -70,12 +70,22 @@ function startBackend() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  // Log backend output
+  // Log backend output and capture actual port
   backendProcess.stdout.on('data', (data) => {
     const output = data.toString().trim();
     log.info('[Backend]', output);
     if (logger) {
       logger.info('Backend output', { output });
+    }
+    
+    // Capture actual port from Uvicorn output: "Uvicorn running on http://0.0.0.0:PORT"
+    const portMatch = output.match(/Uvicorn running on http:\/\/[^:]+:(\d+)/);
+    if (portMatch && BACKEND_PORT === 0) {
+      BACKEND_PORT = parseInt(portMatch[1], 10);
+      log.info(`Backend is using port: ${BACKEND_PORT}`);
+      if (logger) {
+        logger.info('Backend port captured', { port: BACKEND_PORT });
+      }
     }
   });
 
@@ -168,6 +178,19 @@ async function createWindow() {
     title: 'NeuroInsight',
   });
 
+  // Wait for backend port to be captured (max 5 seconds)
+  let portWaitTime = 0;
+  while (BACKEND_PORT === 0 && portWaitTime < 5000) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    portWaitTime += 100;
+  }
+  
+  if (BACKEND_PORT === 0) {
+    throw new Error('Failed to capture backend port from output');
+  }
+  
+  log.info(`Backend port captured: ${BACKEND_PORT}`);
+  
   // Wait for backend to be ready
   try {
     log.info('Waiting for backend to be ready...');
