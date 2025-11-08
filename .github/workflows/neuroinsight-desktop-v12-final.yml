@@ -1,4 +1,4 @@
-name: Build Desktop v11 FINAL (All Fixes)
+name: Build Desktop v12 FINAL (HEAD Method Fix)
 
 on:
   push:
