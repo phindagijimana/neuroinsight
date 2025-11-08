@@ -76,10 +76,6 @@ excludes = [
     'celery',
     'redis',
     'docker',
-    
-    # Optional large packages
-    'matplotlib',  # If not used
-    'pandas',  # If not used for core functionality
 ]
 
 a = Analysis(
