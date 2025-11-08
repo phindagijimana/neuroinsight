@@ -119,9 +119,12 @@ jobs:
         working-directory: desktop_alone/electron-app/dist
         run: |
           echo "Generating checksums..."
-          $file = Get-ChildItem NeuroInsight-Setup-*.exe | Select-Object -First 1
-          $hash = (Get-FileHash -Algorithm SHA256 $file.FullName).Hash
-          "$hash  $($file.Name)" | Out-File -FilePath checksums-windows.txt -Encoding ASCII
+          ls -la
+          Get-ChildItem *.exe | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash
+            "$hash  $($_.Name)" | Out-File -FilePath checksums-windows.txt -Encoding ASCII -Append
+          }
+          echo "Checksum file created:"
           Get-Content checksums-windows.txt
         shell: powershell
       
