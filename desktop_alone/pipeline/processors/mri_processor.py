@@ -23,6 +23,78 @@ logger = get_logger(__name__)
 settings = get_settings()
 
 
+class DockerNotAvailableError(Exception):
+    """User-friendly exception when Docker is not available."""
+    
+    def __init__(self, error_type="not_installed"):
+        self.error_type = error_type
+        
+        messages = {
+            "not_installed": {
+                "title": "Docker Desktop Not Installed",
+                "message": "NeuroInsight requires Docker Desktop to process MRI scans.",
+                "instructions": [
+                    "1. Download Docker Desktop:",
+                    "   • Windows/Mac: https://www.docker.com/get-started",
+                    "   • Linux: https://docs.docker.com/engine/install/",
+                    "",
+                    "2. Install Docker Desktop (takes 10-15 minutes)",
+                    "",
+                    "3. Launch Docker Desktop and wait for the whale icon",
+                    "",
+                    "4. Return to NeuroInsight and try processing again"
+                ],
+                "why": "Docker is needed to run FastSurfer, the brain segmentation tool."
+            },
+            "not_running": {
+                "title": "Docker Desktop Not Running",
+                "message": "Docker Desktop is installed but not currently running.",
+                "instructions": [
+                    "1. Open Docker Desktop from your Applications folder",
+                    "",
+                    "2. Wait for the whale icon to appear in your system tray:",
+                    "   • macOS: Top menu bar",
+                    "   • Windows: System tray (bottom right)",
+                    "   • Linux: System tray",
+                    "",
+                    "3. The icon should be steady (not animating)",
+                    "",
+                    "4. Return to NeuroInsight and try processing again"
+                ],
+                "why": "Docker must be running to process MRI scans."
+            },
+            "image_not_found": {
+                "title": "Downloading Brain Segmentation Model",
+                "message": "First-time setup: Downloading FastSurfer (~4GB).",
+                "instructions": [
+                    "This download happens only once and takes 10-15 minutes.",
+                    "",
+                    "The model will be cached for future use.",
+                    "",
+                    "Please keep Docker Desktop running and wait..."
+                ],
+                "why": "NeuroInsight needs to download the brain segmentation AI model."
+            }
+        }
+        
+        error_info = messages.get(error_type, messages["not_installed"])
+        
+        # Format the error message
+        full_message = f"\n{'='*60}\n"
+        full_message += f"{error_info['title']}\n"
+        full_message += f"{'='*60}\n\n"
+        full_message += f"{error_info['message']}\n\n"
+        full_message += "What to do:\n"
+        full_message += "\n".join(error_info['instructions'])
+        full_message += f"\n\nWhy: {error_info['why']}\n"
+        full_message += f"{'='*60}\n"
+        
+        super().__init__(full_message)
+        self.title = error_info['title']
+        self.user_message = error_info['message']
+        self.instructions = error_info['instructions']
+
+
 class MRIProcessor:
     """
     Main processor for MRI hippocampal analysis.
@@ -179,11 +251,71 @@ class MRIProcessor:
         
         Returns:
             Path to FastSurfer output directory
+        
+        Raises:
+            DockerNotAvailableError: If Docker is not installed or not running
         """
         logger.info("running_fastsurfer_docker", input=str(nifti_path))
         
         fastsurfer_dir = self.output_dir / "fastsurfer"
         fastsurfer_dir.mkdir(exist_ok=True)
+        
+        # Check if Docker is available and running
+        try:
+            result = subprocess.run(
+                ["docker", "version"],
+                capture_output=True,
+                timeout=5
+            )
+            if result.returncode != 0:
+                logger.error("docker_not_running")
+                raise DockerNotAvailableError("not_running")
+            logger.info("docker_available", message="Docker is running")
+        except FileNotFoundError:
+            logger.error("docker_not_installed")
+            raise DockerNotAvailableError("not_installed")
+        except subprocess.TimeoutExpired:
+            logger.error("docker_check_timeout")
+            raise DockerNotAvailableError("not_running")
+        
+        # Check if FastSurfer image is downloaded
+        try:
+            result = subprocess.run(
+                ["docker", "images", "-q", "deepmi/fastsurfer:latest"],
+                capture_output=True,
+                timeout=10
+            )
+            if not result.stdout.strip():
+                # Image not found - need to download
+                logger.info("fastsurfer_image_not_found", message="Will download FastSurfer image")
+                if self.progress_callback:
+                    self.progress_callback(
+                        15,
+                        "Downloading FastSurfer model (4GB, first time only - takes 10-15 min)..."
+                    )
+                
+                # Pull the image
+                logger.info("pulling_fastsurfer_image")
+                pull_result = subprocess.run(
+                    ["docker", "pull", "deepmi/fastsurfer:latest"],
+                    capture_output=True,
+                    text=True,
+                    timeout=1800  # 30 minutes timeout for download
+                )
+                
+                if pull_result.returncode != 0:
+                    logger.error("fastsurfer_pull_failed", stderr=pull_result.stderr)
+                    raise RuntimeError(
+                        "Failed to download FastSurfer model. "
+                        "Please check your internet connection and try again."
+                    )
+                
+                logger.info("fastsurfer_image_downloaded", message="FastSurfer model ready")
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(
+                "Downloading FastSurfer model timed out. "
+                "Please check your internet connection and try again."
+            )
         
         try:
             # Detect GPU support
@@ -318,6 +450,14 @@ class MRIProcessor:
             self._create_mock_fastsurfer_output(fastsurfer_dir)
         
         except subprocess.CalledProcessError as e:
+            # Docker command failed - check if it's a Docker daemon issue
+            stderr_lower = (e.stderr or "").lower() if hasattr(e, 'stderr') else ""
+            
+            if "cannot connect to the docker daemon" in stderr_lower:
+                logger.error("docker_daemon_not_running")
+                raise DockerNotAvailableError("not_running")
+            
+            # Other Docker execution errors
             logger.error(
                 "fastsurfer_execution_failed",
                 error=str(e),
@@ -325,15 +465,9 @@ class MRIProcessor:
                 stdout=e.stdout if hasattr(e, 'stdout') and e.stdout else "No stdout",
                 returncode=e.returncode,
             )
-            logger.warning("using_mock_data", reason="FastSurfer execution failed")
-            self._create_mock_fastsurfer_output(fastsurfer_dir)
-        
-        except FileNotFoundError:
-            logger.warning(
-                "docker_not_found",
-                note="Docker not available - trying Singularity"
-            )
-            # Try Singularity/Apptainer as fallback
+            
+            # Try Singularity as fallback
+            logger.info("trying_singularity_fallback")
             try:
                 return self._run_fastsurfer_singularity(nifti_path, fastsurfer_dir)
             except Exception as sing_error:

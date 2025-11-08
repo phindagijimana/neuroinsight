@@ -15,6 +15,7 @@ from backend.core.logging import get_logger
 from backend.models.job import Job
 from backend.services import JobService, MetricService, StorageService
 from pipeline.processors import MRIProcessor
+from pipeline.processors.mri_processor import DockerNotAvailableError
 from workers.celery_app import celery_app
 
 logger = get_logger(__name__)
