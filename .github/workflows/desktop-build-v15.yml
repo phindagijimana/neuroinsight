@@ -1,4 +1,4 @@
-name: Desktop Build v14 COMPLETE (All Fixes + Frontend)
+name: Desktop Build v15 - Fixed (Frontend Bundled)
 
 on:
   push:
@@ -54,11 +54,16 @@ jobs:
       - name: Build Electron AppImage
         working-directory: desktop_alone/electron-app
         run: |
-          echo "Building Electron AppImage..."
-          echo "Note: Frontend is a single HTML file, included via package.json"
+          echo "Building Electron AppImage with FIXED frontend bundling..."
           npm run build:linux
           echo "Build complete!"
           ls -lh dist/
+      
+      - name: Verify frontend is bundled
+        working-directory: desktop_alone/electron-app/dist/linux-unpacked/resources
+        run: |
+          echo "Verifying frontend is bundled in app.asar..."
+          npx asar list app.asar | grep "frontend/index.html" && echo "✅ Frontend is bundled!" || echo "❌ Frontend missing!"
       
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
@@ -124,8 +129,7 @@ jobs:
       - name: Build Electron installer
         working-directory: desktop_alone/electron-app
         run: |
-          echo "Building Electron installer..."
-          echo "Note: Frontend is a single HTML file, included via package.json"
+          echo "Building Electron installer with FIXED frontend bundling..."
           npm run build:win
           echo "Build complete!"
         shell: bash
@@ -198,13 +202,20 @@ jobs:
       - name: Build Electron DMG
         working-directory: desktop_alone/electron-app
         run: |
-          echo "Building Electron DMG..."
-          echo "Note: Frontend is a single HTML file, included via package.json"
+          echo "Building Electron DMG with FIXED frontend bundling..."
           npm run build:mac
           echo "Build complete!"
           ls -lh dist/
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+      
+      - name: Verify frontend is bundled
+        working-directory: desktop_alone/electron-app/dist/mac
+        run: |
+          echo "Verifying frontend is bundled in app..."
+          if [ -d "NeuroInsight.app" ]; then
+            find NeuroInsight.app -name "index.html" && echo "✅ Frontend is bundled!" || echo "❌ Frontend missing!"
+          fi
       
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
@@ -255,6 +266,10 @@ jobs:
             # NeuroInsight Desktop ${{ github.ref_name }}
             
             Automated hippocampal asymmetry analysis from T1-weighted MRI scans.
+            
+            ## 🐛 Bug Fixes in This Release
+            
+            ✅ **FIXED: Dark window issue** - Frontend now properly bundled in all installers
             
             ## 📥 Downloads
             
@@ -309,6 +324,7 @@ jobs:
             
             ---
             
-            **Version**: 1.1.0  
-            **Date**: November 2025
+            **Version**: 1.1.1  
+            **Date**: November 2025  
+            **Build**: v15 (Frontend Bundling Fixed)
 

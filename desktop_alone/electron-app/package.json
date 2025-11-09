@@ -42,7 +42,6 @@
     "files": [
       "src/**/*",
       "assets/**/*",
-      "../frontend/index.html",
       "!**/*.map",
       "!**/.DS_Store"
     ],
