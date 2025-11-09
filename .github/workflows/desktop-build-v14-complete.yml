@@ -1,4 +1,4 @@
-name: Build Desktop v13 FINAL (Frontend Loading Fix)
+name: Desktop Build v14 COMPLETE (All Fixes + Frontend)
 
 on:
   push:
@@ -39,17 +39,23 @@ jobs:
           echo "Backend built successfully!"
           ls -lh dist/
       
-      - name: Install Node dependencies
+      - name: Verify frontend exists
+        run: |
+          echo "Checking for frontend/index.html..."
+          ls -lh desktop_alone/frontend/index.html
+          echo "Frontend file confirmed!"
+      
+      - name: Install Electron dependencies
         working-directory: desktop_alone/electron-app
         run: |
-          echo "Installing npm dependencies..."
+          echo "Installing Electron dependencies..."
           npm install
       
       - name: Build Electron AppImage
         working-directory: desktop_alone/electron-app
         run: |
           echo "Building Electron AppImage..."
-          echo "Note: Frontend is a single HTML file, no build needed"
+          echo "Note: Frontend is a single HTML file, included via package.json"
           npm run build:linux
           echo "Build complete!"
           ls -lh dist/
@@ -102,17 +108,24 @@ jobs:
           echo "Backend built successfully!"
         shell: bash
       
-      - name: Install Node dependencies
+      - name: Verify frontend exists
+        run: |
+          echo "Checking for frontend/index.html..."
+          ls -lh desktop_alone/frontend/index.html
+          echo "Frontend file confirmed!"
+        shell: bash
+      
+      - name: Install Electron dependencies
         working-directory: desktop_alone/electron-app
         run: |
-          echo "Installing npm dependencies..."
+          echo "Installing Electron dependencies..."
           npm install
       
       - name: Build Electron installer
         working-directory: desktop_alone/electron-app
         run: |
           echo "Building Electron installer..."
-          echo "Note: Frontend is a single HTML file, no build needed"
+          echo "Note: Frontend is a single HTML file, included via package.json"
           npm run build:win
           echo "Build complete!"
         shell: bash
@@ -126,7 +139,7 @@ jobs:
           echo "Generating SHA256 for .exe files..."
           sha256sum NeuroInsight*.exe > checksums-windows.txt || sha256sum *Setup*.exe > checksums-windows.txt || echo "ERROR: No .exe files found!"
           echo "Checksum file:"
-          cat checksums-windows.txt
+          cat checksums-windows.txt || echo "No checksum file created"
         shell: bash
       
       - name: Upload artifacts
@@ -134,7 +147,7 @@ jobs:
         with:
           name: neuroinsight-windows
           path: |
-            desktop_alone/electron-app/dist/*.exe
+            desktop_alone/electron-app/dist/NeuroInsight-Setup-*.exe
             desktop_alone/electron-app/dist/checksums-windows.txt
           retention-days: 30
   
@@ -170,17 +183,23 @@ jobs:
           echo "Backend built successfully!"
           ls -lh dist/
       
-      - name: Install Node dependencies
+      - name: Verify frontend exists
+        run: |
+          echo "Checking for frontend/index.html..."
+          ls -lh desktop_alone/frontend/index.html
+          echo "Frontend file confirmed!"
+      
+      - name: Install Electron dependencies
         working-directory: desktop_alone/electron-app
         run: |
-          echo "Installing npm dependencies..."
+          echo "Installing Electron dependencies..."
           npm install
       
       - name: Build Electron DMG
         working-directory: desktop_alone/electron-app
         run: |
           echo "Building Electron DMG..."
-          echo "Note: Frontend is a single HTML file, no build needed"
+          echo "Note: Frontend is a single HTML file, included via package.json"
           npm run build:mac
           echo "Build complete!"
           ls -lh dist/
@@ -202,13 +221,12 @@ jobs:
             desktop_alone/electron-app/dist/NeuroInsight-*.dmg
             desktop_alone/electron-app/dist/checksums-mac.txt
           retention-days: 30
-  
+
   create-release:
     name: Create GitHub Release
     needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/desktop-v')
-    
     permissions:
       contents: write
     
@@ -258,7 +276,8 @@ jobs:
             ./NeuroInsight-*.AppImage
             ```
             
-            **Windows**: Run the installer  
+            **Windows**: Run the installer
+            
             **macOS**: Right-click → Open (first time only)
             
             ## ✨ Features
@@ -292,8 +311,4 @@ jobs:
             
             **Version**: 1.1.0  
             **Date**: November 2025
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
