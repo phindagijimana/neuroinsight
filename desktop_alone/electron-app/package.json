@@ -42,6 +42,11 @@
     "files": [
       "src/**/*",
       "assets/**/*",
+      {
+        "from": "../frontend",
+        "to": "frontend",
+        "filter": ["**/*"]
+      },
       "!**/*.map",
       "!**/.DS_Store"
     ],
