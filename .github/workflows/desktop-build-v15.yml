@@ -255,13 +255,20 @@ jobs:
           echo "Downloaded artifacts:"
           ls -lhR artifacts/
       
-      - name: Create Release
+      - name: Check file sizes
+        run: |
+          echo "Checking file sizes (GitHub limit: 2GB per file)..."
+          find artifacts -type f -exec ls -lh {} \; | grep -E "\.(AppImage|exe|dmg)$" || true
+          echo ""
+          echo "Files over 2GB will be skipped in release (available in Actions artifacts)"
+      
+      - name: Create Release (checksums only - installers too large)
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/neuroinsight-linux/*
-            artifacts/neuroinsight-windows/*
-            artifacts/neuroinsight-mac/*
+            artifacts/neuroinsight-linux/checksums-linux.txt
+            artifacts/neuroinsight-windows/checksums-windows.txt
+            artifacts/neuroinsight-mac/checksums-mac.txt
           body: |
             # NeuroInsight Desktop ${{ github.ref_name }}
             
@@ -273,9 +280,21 @@ jobs:
             
             ## 📥 Downloads
             
-            - **Linux**: `NeuroInsight-*.AppImage` (~3.9 GB) - No installation needed
-            - **Windows**: `NeuroInsight-Setup-*.exe` (~4.0 GB) - Run installer
-            - **macOS**: `NeuroInsight-*.dmg` (~4.0 GB) - Drag to Applications
+            **⚠️ Installers are too large for GitHub Releases (2.8GB > 2GB limit)**
+            
+            ### Download from GitHub Actions Artifacts:
+            
+            1. Go to the [Actions tab](https://github.com/phindagijimana/neuroinsight/actions/runs/${{ github.run_id }})
+            2. Scroll down to "Artifacts" section
+            3. Download your platform:
+               - **neuroinsight-linux** (2.8 GB) - Contains AppImage
+               - **neuroinsight-windows** - Contains Setup.exe
+               - **neuroinsight-mac** (460 MB) - Contains DMG files
+            
+            ### Checksums (Available in this release):
+            - `checksums-linux.txt` ✅
+            - `checksums-windows.txt` ✅
+            - `checksums-mac.txt` ✅
             
             ## 🔒 Security Verification
             
@@ -285,15 +304,27 @@ jobs:
             
             ## 🚀 Quick Start
             
+            **After downloading from Actions Artifacts:**
+            
             **Linux**:
             ```bash
+            unzip neuroinsight-linux.zip
             chmod +x NeuroInsight-*.AppImage
             ./NeuroInsight-*.AppImage
             ```
             
-            **Windows**: Run the installer
+            **Windows**:
+            ```bash
+            unzip neuroinsight-windows.zip
+            # Run the NeuroInsight-Setup-*.exe installer
+            ```
             
-            **macOS**: Right-click → Open (first time only)
+            **macOS**:
+            ```bash
+            unzip neuroinsight-mac.zip
+            # Open the .dmg file and drag to Applications
+            # Right-click → Open (first time only)
+            ```
             
             ## ✨ Features
             
