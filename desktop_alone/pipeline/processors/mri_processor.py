@@ -110,7 +110,8 @@ class InvalidImageTypeError(Exception):
             "T2": "T2-weighted MRI detected",
             "FLAIR": "FLAIR sequence detected",
             "DWI": "Diffusion-weighted imaging (DWI) detected",
-            "unknown": "Non-T1-weighted image suspected"
+            "fMRI": "Functional MRI (fMRI) detected",
+            "unknown": "Filename does not indicate T1-weighted image"
         }
         
         detected_msg = type_messages.get(detected_type, type_messages["unknown"])
@@ -121,22 +122,45 @@ class InvalidImageTypeError(Exception):
         full_message += f"{detected_msg}.\n\n"
         if details:
             full_message += f"Details: {details}\n\n"
-        full_message += "NeuroInsight requires T1-weighted MRI scans for accurate\n"
-        full_message += "hippocampal volumetric analysis.\n\n"
-        full_message += "What to do:\n"
-        full_message += "1. Verify you uploaded the correct scan series\n\n"
-        full_message += "2. Look for T1-weighted sequences in your MRI data:\n"
-        full_message += "   ✓ MPRAGE (most common for brain imaging)\n"
-        full_message += "   ✓ SPGR (Spoiled Gradient Recalled Echo)\n"
-        full_message += "   ✓ T1-FLAIR\n"
-        full_message += "   ✓ 3D T1 (volumetric T1)\n"
-        full_message += "   ✗ T2-weighted (wrong - different contrast)\n"
-        full_message += "   ✗ FLAIR (wrong - unless T1-FLAIR)\n"
-        full_message += "   ✗ DWI/DTI (wrong - diffusion imaging)\n\n"
-        full_message += "3. Upload the correct T1-weighted scan\n\n"
-        full_message += "Why: FastSurfer's AI model is trained exclusively on\n"
-        full_message += "T1-weighted images. Other sequence types will produce\n"
-        full_message += "incorrect segmentation and invalid volume measurements.\n"
+        
+        # Special message for filename issues (detected_type == "unknown")
+        if detected_type == "unknown" and "does not contain" in details:
+            full_message += "NeuroInsight requires T1-weighted MRI scans.\n\n"
+            full_message += "📝 PLEASE RENAME YOUR FILE:\n\n"
+            full_message += "Your filename should contain 'T1' to indicate it's a\n"
+            full_message += "T1-weighted scan. For example:\n\n"
+            full_message += "   ✓ subject_T1w.nii\n"
+            full_message += "   ✓ brain_T1.nii\n"
+            full_message += "   ✓ patient_01_MPRAGE_T1.nii\n"
+            full_message += "   ✓ scan_T1-weighted.nii\n\n"
+            full_message += "What to do:\n"
+            full_message += "1. Rename your file to include 'T1' in the filename\n"
+            full_message += "2. Make sure you're uploading a T1-weighted scan\n"
+            full_message += "   (MPRAGE, SPGR, or 3D T1 sequences)\n"
+            full_message += "3. Upload the renamed file\n\n"
+            full_message += "Why: This helps ensure you're uploading the correct\n"
+            full_message += "scan type. FastSurfer requires T1-weighted images for\n"
+            full_message += "accurate hippocampal segmentation.\n"
+        else:
+            # Standard message for detected non-T1w sequences
+            full_message += "NeuroInsight requires T1-weighted MRI scans for accurate\n"
+            full_message += "hippocampal volumetric analysis.\n\n"
+            full_message += "What to do:\n"
+            full_message += "1. Verify you uploaded the correct scan series\n\n"
+            full_message += "2. Look for T1-weighted sequences in your MRI data:\n"
+            full_message += "   ✓ MPRAGE (most common for brain imaging)\n"
+            full_message += "   ✓ SPGR (Spoiled Gradient Recalled Echo)\n"
+            full_message += "   ✓ T1-FLAIR\n"
+            full_message += "   ✓ 3D T1 (volumetric T1)\n"
+            full_message += "   ✗ T2-weighted (wrong - different contrast)\n"
+            full_message += "   ✗ FLAIR (wrong - unless T1-FLAIR)\n"
+            full_message += "   ✗ DWI/DTI (wrong - diffusion imaging)\n"
+            full_message += "   ✗ fMRI/BOLD (wrong - functional imaging)\n\n"
+            full_message += "3. Rename the file to include 'T1' and upload it\n\n"
+            full_message += "Why: FastSurfer's AI model is trained exclusively on\n"
+            full_message += "T1-weighted images. Other sequence types will produce\n"
+            full_message += "incorrect segmentation and invalid volume measurements.\n"
+        
         full_message += f"{'='*60}\n"
         
         super().__init__(full_message)
@@ -205,86 +229,62 @@ class MRIProcessor:
     
     def _validate_t1w_image(self, nifti_path: Path) -> None:
         """
-        Validate that the input image appears to be T1-weighted.
+        Validate that the input image appears to be T1-weighted based on filename.
         
-        Performs basic checks on image properties to detect common non-T1w sequences.
-        Note: This is a heuristic check and may not catch all invalid images.
+        Requires the filename to contain 'T1' to ensure proper organization.
+        Rejects files with 'T2', 'FLAIR', 'DWI' in the name.
         
         Args:
             nifti_path: Path to NIfTI file to validate
         
         Raises:
-            InvalidImageTypeError: If image appears to be non-T1weighted
+            InvalidImageTypeError: If filename doesn't indicate T1w or indicates other sequence
         """
-        try:
-            import nibabel as nib
-            import numpy as np
-            
-            # Load image header and data
-            img = nib.load(str(nifti_path))
-            data = img.get_fdata()
-            
-            # Get image description from header if available
-            description = ""
-            if hasattr(img.header, 'get_data_dtype'):
-                description = str(img.header.get('descrip', b'')).lower()
-            
-            # Check 1: Suspicious keywords in header description
-            suspicious_keywords = {
-                't2': 'T2',
-                'flair': 'FLAIR',
-                't2w': 'T2',
-                'dwi': 'DWI',
-                'dti': 'DWI',
-                'diffusion': 'DWI'
-            }
-            
-            for keyword, detected_type in suspicious_keywords.items():
-                if keyword in description and 't1' not in description:
-                    logger.warning(
-                        "non_t1w_sequence_detected_in_header",
-                        detected_type=detected_type,
-                        description=description
-                    )
-                    raise InvalidImageTypeError(
-                        detected_type=detected_type,
-                        details=f"Image header contains '{keyword}' marker"
-                    )
-            
-            # Check 2: T2-weighted images typically have higher signal in CSF (brighter CSF)
-            # T1-weighted images have lower CSF signal (darker CSF)
-            # This is a simple heuristic - check if median intensity is suspiciously high
-            # (T2 images tend to be brighter overall)
-            median_intensity = np.median(data[data > 0])
-            max_intensity = np.max(data)
-            
-            # If median is very high relative to max, might be T2 (bright CSF)
-            if max_intensity > 0:
-                relative_median = median_intensity / max_intensity
-                if relative_median > 0.6:  # T1 images typically have relative_median < 0.5
-                    logger.warning(
-                        "suspicious_intensity_distribution",
-                        median=float(median_intensity),
-                        max=float(max_intensity),
-                        relative_median=float(relative_median),
-                        note="Image has unusually high median intensity (possible T2 or FLAIR)"
-                    )
-                    # Don't raise error based on intensity alone - too many false positives
-                    # Just log a warning
-            
-            logger.info("t1w_validation_passed", note="Image passed basic T1w checks")
-            
-        except InvalidImageTypeError:
-            # Re-raise our custom exceptions
-            raise
-        except Exception as e:
-            # Don't fail processing due to validation errors
-            # Just log a warning and continue
+        filename = nifti_path.name.lower()
+        
+        # First, check for non-T1w sequence keywords (fast rejection)
+        non_t1w_keywords = {
+            't2w': 'T2',
+            't2-w': 'T2',
+            '_t2_': 'T2',
+            '_t2.': 'T2',
+            'flair': 'FLAIR',
+            'dwi': 'DWI',
+            'dti': 'DWI',
+            'diffusion': 'DWI',
+            'bold': 'fMRI',
+            'task': 'fMRI',
+            'rest': 'fMRI',
+        }
+        
+        for keyword, detected_type in non_t1w_keywords.items():
+            if keyword in filename:
+                logger.warning(
+                    "non_t1w_sequence_in_filename",
+                    detected_type=detected_type,
+                    filename=filename
+                )
+                raise InvalidImageTypeError(
+                    detected_type=detected_type,
+                    details=f"Filename contains '{keyword}' - indicates {detected_type} sequence, not T1w"
+                )
+        
+        # Now check if filename contains 'T1' (case-insensitive)
+        t1w_indicators = ['t1w', 't1-w', '_t1_', '_t1.', 't1.nii', 't1.dcm', 'mprage', 'spgr']
+        has_t1_indicator = any(indicator in filename for indicator in t1w_indicators)
+        
+        if not has_t1_indicator:
             logger.warning(
-                "t1w_validation_failed",
-                error=str(e),
-                note="Could not validate T1w, proceeding anyway"
+                "filename_missing_t1_indicator",
+                filename=filename,
+                note="Filename does not contain T1 indicator - asking user to rename"
             )
+            raise InvalidImageTypeError(
+                detected_type="unknown",
+                details=f"Filename '{nifti_path.name}' does not contain 'T1' indicator"
+            )
+        
+        logger.info("t1w_filename_validated", filename=filename, note="Filename indicates T1w sequence")
     
     def process(self, input_path: str) -> Dict:
         """
