@@ -213,9 +213,6 @@ class MRIProcessor:
             # If not set, try to auto-detect from Docker inspect
             if not host_upload_dir or not host_output_dir:
                 try:
-                    import subprocess
-                    import json
-                    
                     # Get our own container info
                     result = subprocess.run(
                         ['docker', 'inspect', os.uname().nodename],
