@@ -284,10 +284,9 @@ async function createWindow() {
     return;
   }
 
-  // Open DevTools in development
-  if (!app.isPackaged) {
-    mainWindow.webContents.openDevTools();
-  }
+  // Open DevTools (enabled for debugging upload issues)
+  // TEMPORARY: Enable in packaged app to debug upload
+  mainWindow.webContents.openDevTools();
 
   // Handle window closed
   mainWindow.on('closed', () => {
