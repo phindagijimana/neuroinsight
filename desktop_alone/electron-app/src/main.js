@@ -233,12 +233,21 @@ async function createWindow() {
     
     mainWindow.loadFile(frontendPath).then(() => {
       log.info('Frontend loaded successfully');
-      // Inject backend URL immediately after load
+      
+      // CRITICAL FIX: Inject backend URL immediately after page load
+      // This MUST happen before React initializes
+      const backendURL = `http://127.0.0.1:${BACKEND_PORT}`;
+      log.info(`Injecting backend URL: ${backendURL}`);
+      
       mainWindow.webContents.executeJavaScript(`
         window.BACKEND_PORT = ${BACKEND_PORT};
-        window.BACKEND_URL = 'http://127.0.0.1:${BACKEND_PORT}';
+        window.BACKEND_URL = '${backendURL}';
         console.log('[Electron] Backend URL injected:', window.BACKEND_URL);
-      `);
+      `).then(() => {
+        log.info('[Electron] Backend URL injection complete');
+      }).catch((err) => {
+        log.error('[Electron] Failed to inject backend URL:', err);
+      });
     }).catch((err) => {
       log.error('Failed to load frontend:', err);
     });
