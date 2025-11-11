@@ -37,7 +37,7 @@ class MetricService:
             Created metric instance
         """
         metric = Metric(
-            job_id=metric_data.job_id,
+            job_id=str(metric_data.job_id),  # Convert UUID to string for SQLite
             region=metric_data.region,
             left_volume=metric_data.left_volume,
             right_volume=metric_data.right_volume,
@@ -75,7 +75,7 @@ class MetricService:
         """
         metrics = [
             Metric(
-                job_id=data.job_id,
+                job_id=str(data.job_id),  # Convert UUID to string for SQLite
                 region=data.region,
                 left_volume=data.left_volume,
                 right_volume=data.right_volume,

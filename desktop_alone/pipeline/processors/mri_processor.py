@@ -487,8 +487,21 @@ class MRIProcessor:
             host_upload_dir = os.getenv('HOST_UPLOAD_DIR')
             host_output_dir = os.getenv('HOST_OUTPUT_DIR')
             
-            # If not set, try to auto-detect from Docker inspect
-            if not host_upload_dir or not host_output_dir:
+            # Check if we're running in desktop mode (not containerized)
+            desktop_mode = os.getenv('DESKTOP_MODE', 'false').lower() == 'true'
+            
+            if desktop_mode:
+                # Desktop mode: backend runs directly on host, use actual file paths
+                input_host_path = str(nifti_path.parent.resolve())
+                output_host_path = str(fastsurfer_dir.resolve())
+                logger.info(
+                    "desktop_mode_paths",
+                    input_path=input_host_path,
+                    output_path=output_host_path,
+                    note="Using direct host paths for desktop mode"
+                )
+            elif not host_upload_dir or not host_output_dir:
+                # Docker-in-Docker mode: try to auto-detect from Docker inspect
                 try:
                     # Get our own container info
                     result = subprocess.run(
@@ -512,6 +525,12 @@ class MRIProcessor:
                         upload_dir=host_upload_dir,
                         output_dir=host_output_dir
                     )
+                    
+                    # Calculate relative paths from host perspective
+                    # nifti_path is like /data/uploads/file.nii (inside worker container)
+                    # We need to translate to host path
+                    input_host_path = host_upload_dir
+                    output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
                 except Exception as e:
                     logger.warning(
                         "host_path_detection_failed",
@@ -520,18 +539,17 @@ class MRIProcessor:
                     )
                     host_upload_dir = host_upload_dir or '/data/uploads'
                     host_output_dir = host_output_dir or '/data/outputs'
+                    input_host_path = host_upload_dir
+                    output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
             else:
+                # Explicitly configured host paths
                 logger.info(
                     "using_configured_host_paths",
                     upload_dir=host_upload_dir,
                     output_dir=host_output_dir
                 )
-            
-            # Calculate relative paths from host perspective
-            # nifti_path is like /data/uploads/file.nii (inside worker container)
-            # We need to translate to host path
-            input_host_path = host_upload_dir
-            output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
+                input_host_path = host_upload_dir
+                output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
             
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
