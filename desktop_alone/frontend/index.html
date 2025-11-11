@@ -2071,13 +2071,15 @@
      * Wraps the app in ErrorBoundary for error handling
      */
     async function initializeApp() {
-      // Wait a brief moment for Electron to inject window.BACKEND_URL
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait longer for Electron to inject window.BACKEND_URL
+      // Some Macs need more time for executeJavaScript to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       // If running in Electron desktop mode, use injected backend URL
       if (window.BACKEND_URL) {
         CONFIG.api.baseUrl = window.BACKEND_URL;
         console.log('[Desktop] Backend URL set to:', window.BACKEND_URL);
+        console.log('[Desktop] CONFIG.api.baseUrl is now:', CONFIG.api.baseUrl);
       } else if (window.electronAPI && window.electronAPI.getBackendURL) {
         // Fallback to IPC method if available
         try {
@@ -2089,6 +2091,7 @@
         }
       } else {
         console.log('[Web] Using default backend URL:', CONFIG.api.baseUrl);
+        console.warn('[Web] window.BACKEND_URL was undefined!');
       }
       
       // Render the app
