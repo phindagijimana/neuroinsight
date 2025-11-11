@@ -57,10 +57,11 @@
     const CONFIG = {
       api: {
         baseUrl: (function() {
-          // Check if running in Electron desktop mode (window.BACKEND_URL is set by Electron)
-          if (window.BACKEND_URL) {
-            console.log('Desktop mode detected, using Electron backend URL:', window.BACKEND_URL);
-            return window.BACKEND_URL;
+          // Check if running in Electron desktop mode (window.electronAPI is set by preload)
+          if (window.electronAPI && window.electronAPI.getBackendURL) {
+            // We'll fetch this asynchronously, but for now return a placeholder
+            // The actual URL will be fetched when needed
+            return 'http://localhost:8000'; // Placeholder, will be replaced
           }
           
           // Try to detect API URL - check if we're accessing via different ports
@@ -2069,12 +2070,29 @@
      * Initialize and render the React application
      * Wraps the app in ErrorBoundary for error handling
      */
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(
-      <ErrorBoundary>
-        <NeuroInsightApp />
-      </ErrorBoundary>
-    );
+    async function initializeApp() {
+      // If running in Electron, fetch the backend URL first
+      if (window.electronAPI && window.electronAPI.getBackendURL) {
+        try {
+          const backendURL = await window.electronAPI.getBackendURL();
+          CONFIG.api.baseUrl = backendURL;
+          console.log('Desktop mode: Backend URL set to:', backendURL);
+        } catch (error) {
+          console.error('Failed to get backend URL from Electron:', error);
+        }
+      }
+      
+      // Render the app
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(
+        <ErrorBoundary>
+          <NeuroInsightApp />
+        </ErrorBoundary>
+      );
+    }
+    
+    // Start the app
+    initializeApp();
   </script>
 </body>
 </html>

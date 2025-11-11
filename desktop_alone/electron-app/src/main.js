@@ -24,6 +24,11 @@ try {
   log.error('Failed to initialize custom logger:', error);
 }
 
+// IPC Handler for backend URL
+ipcMain.handle('get-backend-url', () => {
+  return `http://127.0.0.1:${BACKEND_PORT}`;
+});
+
 let mainWindow = null;
 let backendProcess = null;
 let BACKEND_PORT = 0; // 0 = OS assigns available port dynamically
@@ -183,6 +188,7 @@ async function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
     show: false,  // Don't show until ready
     backgroundColor: '#1a1a1a',
@@ -229,13 +235,8 @@ async function createWindow() {
       log.error('Failed to load frontend:', err);
     });
     
-    // Set the backend URL as a global for the frontend to use
-    mainWindow.webContents.on('did-finish-load', () => {
-      mainWindow.webContents.executeJavaScript(`
-        window.BACKEND_URL = 'http://127.0.0.1:${BACKEND_PORT}';
-        console.log('Backend URL set to:', window.BACKEND_URL);
-      `);
-    });
+    // Backend URL is now exposed via IPC in preload script
+    // No need to inject via executeJavaScript
     
     // Show window when ready, close splash
     mainWindow.once('ready-to-show', () => {
