@@ -178,19 +178,54 @@ async def upload_mri(
         job = JobService.create_job(db, job_data)
         
         # Trigger processing asynchronously
-        try:
-            from workers.tasks.processing import process_mri_task
-            process_mri_task.delay(str(job.id))
-        except Exception as celery_error:
-            # If Celery task enqueueing fails, log but don't fail the upload
-            # The job is already created, so it can be manually triggered later
-            logger.error(
-                "celery_task_enqueue_failed",
-                job_id=str(job.id),
-                error=str(celery_error),
-                error_type=type(celery_error).__name__,
-            )
-            # Don't raise - job is created successfully, just needs manual trigger
+        # Desktop mode: Use background thread
+        # Server mode: Use Celery
+        from backend.core.config import get_settings
+        settings = get_settings()
+        
+        if settings.desktop_mode:
+            # Desktop mode: Process in background thread
+            try:
+                from workers.tasks.processing_desktop import process_mri_direct
+                from backend.services.task_service import submit_task
+                
+                # Submit task to thread pool executor
+                task_result = submit_task(process_mri_direct, str(job.id))
+                
+                logger.info(
+                    "desktop_task_submitted",
+                    job_id=str(job.id),
+                    task_id=task_result.id,
+                    mode="threading"
+                )
+            except Exception as task_error:
+                logger.error(
+                    "desktop_task_submit_failed",
+                    job_id=str(job.id),
+                    error=str(task_error),
+                    error_type=type(task_error).__name__,
+                )
+                # Don't raise - job is created successfully, just needs manual trigger
+        else:
+            # Server mode: Use Celery
+            try:
+                from workers.tasks.processing import process_mri_task
+                process_mri_task.delay(str(job.id))
+                
+                logger.info(
+                    "celery_task_submitted",
+                    job_id=str(job.id),
+                    mode="celery"
+                )
+            except Exception as celery_error:
+                # If Celery task enqueueing fails, log but don't fail the upload
+                logger.error(
+                    "celery_task_enqueue_failed",
+                    job_id=str(job.id),
+                    error=str(celery_error),
+                    error_type=type(celery_error).__name__,
+                )
+                # Don't raise - job is created successfully, just needs manual trigger
         
         logger.info(
             "upload_successful",
