@@ -364,3 +364,4 @@ script ~/neuroinsight-session-$(date +%Y%m%d).log
 **Last Updated**: November 9, 2025  
 **Version**: v1.1.3+
 
+

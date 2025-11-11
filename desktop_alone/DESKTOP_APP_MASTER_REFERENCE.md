@@ -1444,3 +1444,5 @@ This desktop application is a **standalone, self-contained Electron app** that:
 
 **This document is your complete reference.** Bookmark it! 📚
 
+
+

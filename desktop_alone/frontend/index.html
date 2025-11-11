@@ -2071,15 +2071,24 @@
      * Wraps the app in ErrorBoundary for error handling
      */
     async function initializeApp() {
-      // If running in Electron, fetch the backend URL first
-      if (window.electronAPI && window.electronAPI.getBackendURL) {
+      // Wait a brief moment for Electron to inject window.BACKEND_URL
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // If running in Electron desktop mode, use injected backend URL
+      if (window.BACKEND_URL) {
+        CONFIG.api.baseUrl = window.BACKEND_URL;
+        console.log('[Desktop] Backend URL set to:', window.BACKEND_URL);
+      } else if (window.electronAPI && window.electronAPI.getBackendURL) {
+        // Fallback to IPC method if available
         try {
           const backendURL = await window.electronAPI.getBackendURL();
           CONFIG.api.baseUrl = backendURL;
-          console.log('Desktop mode: Backend URL set to:', backendURL);
+          console.log('[Desktop] Backend URL set via IPC to:', backendURL);
         } catch (error) {
-          console.error('Failed to get backend URL from Electron:', error);
+          console.error('[Desktop] Failed to get backend URL:', error);
         }
+      } else {
+        console.log('[Web] Using default backend URL:', CONFIG.api.baseUrl);
       }
       
       // Render the app

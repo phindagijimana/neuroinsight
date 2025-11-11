@@ -220,6 +220,10 @@ async function createWindow() {
     
     log.info('Backend is ready!');
     
+    // Set backend URL as a global BEFORE loading frontend
+    // This ensures it's available when React initializes
+    global.backendPort = BACKEND_PORT;
+    
     // Load the frontend HTML file (bundled with Electron)
     // The frontend is now in extraResources (outside app.asar, like backend)
     const frontendPath = app.isPackaged
@@ -227,16 +231,17 @@ async function createWindow() {
       : path.join(__dirname, '..', 'frontend', 'index.html');
     log.info(`Loading frontend from: ${frontendPath}`);
     
-    // First, set the backend URL before loading the page
-    // This makes it available synchronously when the page loads
     mainWindow.loadFile(frontendPath).then(() => {
       log.info('Frontend loaded successfully');
+      // Inject backend URL immediately after load
+      mainWindow.webContents.executeJavaScript(`
+        window.BACKEND_PORT = ${BACKEND_PORT};
+        window.BACKEND_URL = 'http://127.0.0.1:${BACKEND_PORT}';
+        console.log('[Electron] Backend URL injected:', window.BACKEND_URL);
+      `);
     }).catch((err) => {
       log.error('Failed to load frontend:', err);
     });
-    
-    // Backend URL is now exposed via IPC in preload script
-    // No need to inject via executeJavaScript
     
     // Show window when ready, close splash
     mainWindow.once('ready-to-show', () => {
