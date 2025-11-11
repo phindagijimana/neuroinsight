@@ -95,6 +95,54 @@ class DockerNotAvailableError(Exception):
         self.instructions = error_info['instructions']
 
 
+class InvalidImageTypeError(Exception):
+    """Raised when the uploaded image is not T1-weighted or unsuitable for processing."""
+    
+    def __init__(self, detected_type="unknown", details=""):
+        """
+        Initialize InvalidImageTypeError with user-friendly message.
+        
+        Args:
+            detected_type: The type of image detected (e.g., "T2", "FLAIR", "unknown")
+            details: Additional details about why the image was rejected
+        """
+        type_messages = {
+            "T2": "T2-weighted MRI detected",
+            "FLAIR": "FLAIR sequence detected",
+            "DWI": "Diffusion-weighted imaging (DWI) detected",
+            "unknown": "Non-T1-weighted image suspected"
+        }
+        
+        detected_msg = type_messages.get(detected_type, type_messages["unknown"])
+        
+        full_message = f"\n{'='*60}\n"
+        full_message += "Invalid MRI Sequence Type\n"
+        full_message += f"{'='*60}\n\n"
+        full_message += f"{detected_msg}.\n\n"
+        if details:
+            full_message += f"Details: {details}\n\n"
+        full_message += "NeuroInsight requires T1-weighted MRI scans for accurate\n"
+        full_message += "hippocampal volumetric analysis.\n\n"
+        full_message += "What to do:\n"
+        full_message += "1. Verify you uploaded the correct scan series\n\n"
+        full_message += "2. Look for T1-weighted sequences in your MRI data:\n"
+        full_message += "   ✓ MPRAGE (most common for brain imaging)\n"
+        full_message += "   ✓ SPGR (Spoiled Gradient Recalled Echo)\n"
+        full_message += "   ✓ T1-FLAIR\n"
+        full_message += "   ✓ 3D T1 (volumetric T1)\n"
+        full_message += "   ✗ T2-weighted (wrong - different contrast)\n"
+        full_message += "   ✗ FLAIR (wrong - unless T1-FLAIR)\n"
+        full_message += "   ✗ DWI/DTI (wrong - diffusion imaging)\n\n"
+        full_message += "3. Upload the correct T1-weighted scan\n\n"
+        full_message += "Why: FastSurfer's AI model is trained exclusively on\n"
+        full_message += "T1-weighted images. Other sequence types will produce\n"
+        full_message += "incorrect segmentation and invalid volume measurements.\n"
+        full_message += f"{'='*60}\n"
+        
+        super().__init__(full_message)
+        self.detected_type = detected_type
+
+
 class MRIProcessor:
     """
     Main processor for MRI hippocampal analysis.
@@ -155,6 +203,89 @@ class MRIProcessor:
         logger.info("gpu_not_detected", note="No GPU found - will use CPU for processing")
         return False
     
+    def _validate_t1w_image(self, nifti_path: Path) -> None:
+        """
+        Validate that the input image appears to be T1-weighted.
+        
+        Performs basic checks on image properties to detect common non-T1w sequences.
+        Note: This is a heuristic check and may not catch all invalid images.
+        
+        Args:
+            nifti_path: Path to NIfTI file to validate
+        
+        Raises:
+            InvalidImageTypeError: If image appears to be non-T1weighted
+        """
+        try:
+            import nibabel as nib
+            import numpy as np
+            
+            # Load image header and data
+            img = nib.load(str(nifti_path))
+            data = img.get_fdata()
+            
+            # Get image description from header if available
+            description = ""
+            if hasattr(img.header, 'get_data_dtype'):
+                description = str(img.header.get('descrip', b'')).lower()
+            
+            # Check 1: Suspicious keywords in header description
+            suspicious_keywords = {
+                't2': 'T2',
+                'flair': 'FLAIR',
+                't2w': 'T2',
+                'dwi': 'DWI',
+                'dti': 'DWI',
+                'diffusion': 'DWI'
+            }
+            
+            for keyword, detected_type in suspicious_keywords.items():
+                if keyword in description and 't1' not in description:
+                    logger.warning(
+                        "non_t1w_sequence_detected_in_header",
+                        detected_type=detected_type,
+                        description=description
+                    )
+                    raise InvalidImageTypeError(
+                        detected_type=detected_type,
+                        details=f"Image header contains '{keyword}' marker"
+                    )
+            
+            # Check 2: T2-weighted images typically have higher signal in CSF (brighter CSF)
+            # T1-weighted images have lower CSF signal (darker CSF)
+            # This is a simple heuristic - check if median intensity is suspiciously high
+            # (T2 images tend to be brighter overall)
+            median_intensity = np.median(data[data > 0])
+            max_intensity = np.max(data)
+            
+            # If median is very high relative to max, might be T2 (bright CSF)
+            if max_intensity > 0:
+                relative_median = median_intensity / max_intensity
+                if relative_median > 0.6:  # T1 images typically have relative_median < 0.5
+                    logger.warning(
+                        "suspicious_intensity_distribution",
+                        median=float(median_intensity),
+                        max=float(max_intensity),
+                        relative_median=float(relative_median),
+                        note="Image has unusually high median intensity (possible T2 or FLAIR)"
+                    )
+                    # Don't raise error based on intensity alone - too many false positives
+                    # Just log a warning
+            
+            logger.info("t1w_validation_passed", note="Image passed basic T1w checks")
+            
+        except InvalidImageTypeError:
+            # Re-raise our custom exceptions
+            raise
+        except Exception as e:
+            # Don't fail processing due to validation errors
+            # Just log a warning and continue
+            logger.warning(
+                "t1w_validation_failed",
+                error=str(e),
+                note="Could not validate T1w, proceeding anyway"
+            )
+    
     def process(self, input_path: str) -> Dict:
         """
         Execute the complete processing pipeline.
@@ -171,6 +302,11 @@ class MRIProcessor:
         if self.progress_callback:
             self.progress_callback(17, "Preparing input file...")
         nifti_path = self._prepare_input(input_path)
+        
+        # Step 1.5: Validate that image appears to be T1-weighted
+        if self.progress_callback:
+            self.progress_callback(18, "Validating image type (T1w required)...")
+        self._validate_t1w_image(nifti_path)
         
         # Step 2: Run FastSurfer segmentation (whole brain) - LONGEST STEP
         if self.progress_callback:

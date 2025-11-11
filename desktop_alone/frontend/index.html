@@ -328,6 +328,7 @@
         completedAt: formatDate(job.completed_at),
         processingTime: job.processing_time || '',
         currentStep: job.current_step ?? (normalizedStatus === 'processing' ? 'Processing...' : ''),
+        errorMessage: job.error_message || null,
       };
     };
     
@@ -1184,6 +1185,84 @@
                               </div>
                               <div className="w-full bg-gray-200 rounded-full h-2">
                                 <div className="bg-blue-600 h-2 rounded-full transition-all duration-500" style={{ width: `${job.progress}%` }}></div>
+                              </div>
+                            </div>
+                          )}
+
+                          {job.status === 'failed' && job.errorMessage && (
+                            <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-4">
+                              <div className="flex items-start gap-3">
+                                <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                  <p className="font-semibold text-red-900 mb-2">Job Failed</p>
+                                  {(() => {
+                                    const isDockerError = job.errorMessage.includes('Docker Desktop Not Running') || 
+                                                         job.errorMessage.includes('Docker Desktop is installed but not currently running');
+                                    const isT1wError = job.errorMessage.includes('T1-weighted') || 
+                                                      job.errorMessage.includes('T1w') ||
+                                                      job.errorMessage.includes('image type');
+                                    
+                                    if (isDockerError) {
+                                      return (
+                                        <div>
+                                          <p className="text-sm text-red-800 mb-3">
+                                            <strong>Docker Desktop is not running.</strong> NeuroInsight requires Docker to process MRI scans.
+                                          </p>
+                                          <div className="bg-white border border-red-300 rounded-md p-3 mb-3">
+                                            <p className="text-xs font-semibold text-gray-900 mb-2">Quick Fix:</p>
+                                            <ol className="text-xs text-gray-700 space-y-1 list-decimal list-inside">
+                                              <li>Open <strong>Docker Desktop</strong> from Applications</li>
+                                              <li>Wait for the whale icon to appear in your menu bar</li>
+                                              <li>Icon should be steady (not animating)</li>
+                                              <li>Upload your MRI file again</li>
+                                            </ol>
+                                          </div>
+                                          <details className="text-xs">
+                                            <summary className="cursor-pointer text-red-700 hover:text-red-900 font-medium">Show full error details</summary>
+                                            <pre className="mt-2 p-2 bg-red-100 rounded text-xs overflow-auto max-h-32">{job.errorMessage}</pre>
+                                          </details>
+                                        </div>
+                                      );
+                                    } else if (isT1wError) {
+                                      return (
+                                        <div>
+                                          <p className="text-sm text-red-800 mb-3">
+                                            <strong>This is not a T1w image.</strong> Please upload a T1w image instead.
+                                          </p>
+                                          <div className="bg-white border border-red-300 rounded-md p-3 mb-3">
+                                            <p className="text-xs font-semibold text-gray-900 mb-2">✓ Accepted T1w sequences:</p>
+                                            <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside ml-2">
+                                              <li>MPRAGE</li>
+                                              <li>SPGR</li>
+                                              <li>T1-FLAIR</li>
+                                              <li>3D T1</li>
+                                            </ul>
+                                            <p className="text-xs font-semibold text-gray-900 mt-3 mb-1">✗ Not supported:</p>
+                                            <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside ml-2">
+                                              <li>T2-weighted</li>
+                                              <li>FLAIR (unless T1-FLAIR)</li>
+                                              <li>DWI/DTI</li>
+                                            </ul>
+                                          </div>
+                                          <details className="text-xs">
+                                            <summary className="cursor-pointer text-red-700 hover:text-red-900 font-medium">Show full error details</summary>
+                                            <pre className="mt-2 p-2 bg-red-100 rounded text-xs overflow-auto max-h-32">{job.errorMessage}</pre>
+                                          </details>
+                                        </div>
+                                      );
+                                    } else {
+                                      return (
+                                        <div>
+                                          <p className="text-sm text-red-800 mb-2">An error occurred during processing:</p>
+                                          <details className="text-xs" open>
+                                            <summary className="cursor-pointer text-red-700 hover:text-red-900 font-medium mb-2">Error details</summary>
+                                            <pre className="p-2 bg-red-100 rounded text-xs overflow-auto max-h-32">{job.errorMessage}</pre>
+                                          </details>
+                                        </div>
+                                      );
+                                    }
+                                  })()}
+                                </div>
                               </div>
                             </div>
                           )}
