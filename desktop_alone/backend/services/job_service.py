@@ -61,18 +61,20 @@ class JobService:
         return job
     
     @staticmethod
-    def get_job(db: Session, job_id: UUID) -> Optional[Job]:
+    def get_job(db: Session, job_id) -> Optional[Job]:
         """
         Retrieve a job by ID.
         
         Args:
             db: Database session
-            job_id: Job identifier
+            job_id: Job identifier (UUID or string - will be converted to string for SQLite)
         
         Returns:
             Job instance if found, None otherwise
         """
-        return db.query(Job).filter(Job.id == job_id).first()
+        # Convert to string for SQLite compatibility (VARCHAR(36) with dashes)
+        job_id_str = str(job_id)
+        return db.query(Job).filter(Job.id == job_id_str).first()
     
     @staticmethod
     def get_jobs(
@@ -101,19 +103,21 @@ class JobService:
         return query.order_by(Job.created_at.desc()).offset(skip).limit(limit).all()
     
     @staticmethod
-    def update_job(db: Session, job_id: UUID, job_update: JobUpdate) -> Optional[Job]:
+    def update_job(db: Session, job_id, job_update: JobUpdate) -> Optional[Job]:
         """
         Update an existing job.
         
         Args:
             db: Database session
-            job_id: Job identifier
+            job_id: Job identifier (UUID or string - will be converted to string for SQLite)
             job_update: Updated job data
         
         Returns:
             Updated job instance if found, None otherwise
         """
-        job = db.query(Job).filter(Job.id == job_id).first()
+        # Convert to string for SQLite compatibility
+        job_id_str = str(job_id)
+        job = db.query(Job).filter(Job.id == job_id_str).first()
         
         if not job:
             logger.warning("job_not_found", job_id=str(job_id))
@@ -137,7 +141,7 @@ class JobService:
         return job
     
     @staticmethod
-    def delete_job(db: Session, job_id: UUID) -> bool:
+    def delete_job(db: Session, job_id) -> bool:
         """
         Delete a job and its associated metrics and files.
         
@@ -152,12 +156,14 @@ class JobService:
         
         Args:
             db: Database session
-            job_id: Job identifier
+            job_id: Job identifier (UUID or string - will be converted to string for SQLite)
         
         Returns:
             True if deleted, False if not found
         """
-        job = db.query(Job).filter(Job.id == job_id).first()
+        # Convert to string for SQLite compatibility
+        job_id_str = str(job_id)
+        job = db.query(Job).filter(Job.id == job_id_str).first()
         
         if not job:
             logger.warning("job_not_found", job_id=str(job_id))
@@ -190,8 +196,8 @@ class JobService:
             
             logger.info("job_marked_cancelled", job_id=str(job_id))
         
-        # Delete associated metrics
-        db.query(Metric).filter(Metric.job_id == job_id).delete()
+        # Delete associated metrics (use string format for SQLite)
+        db.query(Metric).filter(Metric.job_id == job_id_str).delete()
         
         # Delete associated files (upload and output directory)
         try:
@@ -216,18 +222,20 @@ class JobService:
         return True
     
     @staticmethod
-    def start_job(db: Session, job_id: UUID) -> Optional[Job]:
+    def start_job(db: Session, job_id) -> Optional[Job]:
         """
         Mark a job as started.
         
         Args:
             db: Database session
-            job_id: Job identifier
+            job_id: Job identifier (UUID or string - will be converted to string for SQLite)
         
         Returns:
             Updated job instance if found, None otherwise
         """
-        job = db.query(Job).filter(Job.id == job_id).first()
+        # Convert to string for SQLite compatibility
+        job_id_str = str(job_id)
+        job = db.query(Job).filter(Job.id == job_id_str).first()
         
         if not job:
             return None
@@ -245,7 +253,7 @@ class JobService:
     @staticmethod
     def complete_job(
         db: Session,
-        job_id: UUID,
+        job_id,
         result_path: str
     ) -> Optional[Job]:
         """
@@ -253,13 +261,15 @@ class JobService:
         
         Args:
             db: Database session
-            job_id: Job identifier
+            job_id: Job identifier (UUID or string - will be converted to string for SQLite)
             result_path: Path to processing results
         
         Returns:
             Updated job instance if found, None otherwise
         """
-        job = db.query(Job).filter(Job.id == job_id).first()
+        # Convert to string for SQLite compatibility
+        job_id_str = str(job_id)
+        job = db.query(Job).filter(Job.id == job_id_str).first()
         
         if not job:
             return None
@@ -280,19 +290,21 @@ class JobService:
         return job
     
     @staticmethod
-    def fail_job(db: Session, job_id: UUID, error_message: str) -> Optional[Job]:
+    def fail_job(db: Session, job_id, error_message: str) -> Optional[Job]:
         """
         Mark a job as failed.
         
         Args:
             db: Database session
-            job_id: Job identifier
+            job_id: Job identifier (UUID or string - will be converted to string for SQLite)
             error_message: Error description
         
         Returns:
             Updated job instance if found, None otherwise
         """
-        job = db.query(Job).filter(Job.id == job_id).first()
+        # Convert to string for SQLite compatibility
+        job_id_str = str(job_id)
+        job = db.query(Job).filter(Job.id == job_id_str).first()
         
         if not job:
             return None
