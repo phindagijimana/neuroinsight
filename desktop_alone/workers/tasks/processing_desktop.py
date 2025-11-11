@@ -19,24 +19,27 @@ from pipeline.processors import MRIProcessor
 logger = get_logger(__name__)
 
 
-def update_job_progress(db: Session, job_id: UUID, progress: int, current_step: str):
+def update_job_progress(db: Session, job_id, progress: int, current_step: str):
     """
     Update job progress and current step description.
     
     Args:
         db: Database session
-        job_id: Job identifier
+        job_id: Job identifier (string or UUID - will be converted to string for SQLite)
         progress: Progress percentage (0-100)
         current_step: Description of current processing step
     """
     try:
+        # Ensure job_id is string format (for SQLite VARCHAR(36) with dashes)
+        job_id_str = str(job_id)
+        
         db.execute(
             update(Job)
-            .where(Job.id == job_id)
+            .where(Job.id == job_id_str)
             .values(progress=progress, current_step=current_step)
         )
         db.commit()
-        logger.info("progress_updated", job_id=str(job_id), progress=progress, step=current_step)
+        logger.info("progress_updated", job_id=job_id_str, progress=progress, step=current_step)
     except Exception as e:
         logger.warning("progress_update_failed", job_id=str(job_id), error=str(e))
         db.rollback()
@@ -68,11 +71,18 @@ def process_mri_direct(job_id: str):
     try:
         logger.info("desktop_task_started", job_id=job_id)
         
-        # Parse job ID
-        job_uuid = UUID(job_id)
+        # Parse job ID - CRITICAL: Ensure UUID string format with dashes
+        # SQLite stores UUID as VARCHAR(36) with dashes like: 'd6615863-f581-467f-b6b2-3e20dcf86a01'
+        # If we pass UUID object to SQLAlchemy, it converts to hex WITHOUT dashes: 'd6615863f581467fb6b23e20dcf86a01'
+        # This causes query mismatch! Solution: Always use string format with dashes
+        job_uuid_str = str(job_id) if not isinstance(job_id, str) else job_id
         
-        # Check if job exists and is not cancelled
-        job = JobService.get_job(db, job_uuid)
+        # Ensure it's a valid UUID and get canonical string representation WITH dashes
+        job_uuid_obj = UUID(job_uuid_str)
+        job_uuid_canonical = str(job_uuid_obj)  # Guarantees format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        
+        # Use canonical string ID for ALL database queries
+        job = JobService.get_job(db, job_uuid_canonical)
         if not job:
             logger.error("job_not_found", job_id=job_id)
             raise ValueError(f"Job {job_id} not found")
@@ -87,13 +97,13 @@ def process_mri_direct(job_id: str):
             }
         
         # Mark job as started
-        job = JobService.start_job(db, job_uuid)
+        job = JobService.start_job(db, job_uuid_canonical)
         if not job:
             logger.error("job_not_found_after_check", job_id=job_id)
             raise ValueError(f"Job {job_id} not found")
         
         # Update progress: Job started (5%)
-        update_job_progress(db, job_uuid, 5, "Job started - preparing file...")
+        update_job_progress(db, job_uuid_canonical, 5, "Job started - preparing file...")
         
         # Get file path from storage
         storage_service = StorageService()
@@ -102,7 +112,7 @@ def process_mri_direct(job_id: str):
         logger.info("processing_started", job_id=job_id, file_path=file_path)
         
         # Update progress: File retrieved (10%)
-        update_job_progress(db, job_uuid, 10, "File retrieved - initializing processor...")
+        update_job_progress(db, job_uuid_canonical, 10, "File retrieved - initializing processor...")
         
         # Define progress callback for detailed tracking (5% increments)
         last_reported_progress = 10
@@ -113,7 +123,7 @@ def process_mri_direct(job_id: str):
             
             # Only update if progress increased by at least 5%
             if progress >= last_reported_progress + 5 or progress >= 100:
-                update_job_progress(db, job_uuid, progress, step)
+                update_job_progress(db, job_uuid_canonical, progress, step)
                 last_reported_progress = progress
                 logger.info(
                     "processing_progress",
@@ -122,11 +132,11 @@ def process_mri_direct(job_id: str):
                     step=step
                 )
         
-        # Initialize processor with progress callback
-        processor = MRIProcessor(job_uuid, progress_callback=progress_callback)
+        # Initialize processor with progress callback (needs UUID object)
+        processor = MRIProcessor(job_uuid_obj, progress_callback=progress_callback)
         
         # Update progress: Starting brain segmentation (15%)
-        update_job_progress(db, job_uuid, 15, "Starting brain segmentation (FastSurfer)...")
+        update_job_progress(db, job_uuid_canonical, 15, "Starting brain segmentation (FastSurfer)...")
         last_reported_progress = 15
         
         # Run processing pipeline
@@ -136,7 +146,7 @@ def process_mri_direct(job_id: str):
                 """Check if job was cancelled during processing."""
                 db_check = SessionLocal()
                 try:
-                    current_job = JobService.get_job(db_check, job_uuid)
+                    current_job = JobService.get_job(db_check, job_uuid_canonical)
                     if current_job and current_job.status == JobStatus.CANCELLED:
                         logger.info("job_cancelled_during_processing", job_id=job_id)
                         return True
@@ -166,7 +176,7 @@ def process_mri_direct(job_id: str):
                 }
             
             # Update progress: Processing complete, saving results (85%)
-            update_job_progress(db, job_uuid, 85, "Processing complete - saving metrics...")
+            update_job_progress(db, job_uuid_canonical, 85, "Processing complete - saving metrics...")
             
             logger.info(
                 "processing_completed",
@@ -179,7 +189,7 @@ def process_mri_direct(job_id: str):
             from backend.models.metric import Metric
             
             # Delete existing metrics for this job (in case of reprocessing)
-            existing_metrics_count = db.query(Metric).filter(Metric.job_id == job_uuid).count()
+            existing_metrics_count = db.query(Metric).filter(Metric.job_id == job_uuid_canonical).count()
             if existing_metrics_count > 0:
                 logger.info(
                     "clearing_existing_metrics",
@@ -187,12 +197,12 @@ def process_mri_direct(job_id: str):
                     count=existing_metrics_count,
                     reason="Job is being reprocessed"
                 )
-                db.query(Metric).filter(Metric.job_id == job_uuid).delete()
+                db.query(Metric).filter(Metric.job_id == job_uuid_canonical).delete()
                 db.commit()
             
             metrics_data = [
                 MetricCreate(
-                    job_id=job_uuid,
+                    job_id=job_uuid_canonical,
                     region=metric["region"],
                     left_volume=metric["left_volume"],
                     right_volume=metric["right_volume"],
@@ -204,13 +214,13 @@ def process_mri_direct(job_id: str):
             MetricService.create_metrics_bulk(db, metrics_data)
             
             # Update progress: Finalizing (95%)
-            update_job_progress(db, job_uuid, 95, "Finalizing results...")
+            update_job_progress(db, job_uuid_canonical, 95, "Finalizing results...")
             
             # Mark job as completed (this will set progress to 100)
-            JobService.complete_job(db, job_uuid, results["output_dir"])
+            JobService.complete_job(db, job_uuid_canonical, results["output_dir"])
             
             # Update progress: Complete (100%)
-            update_job_progress(db, job_uuid, 100, "Complete")
+            update_job_progress(db, job_uuid_canonical, 100, "Complete")
             
             logger.info("desktop_task_completed", job_id=job_id)
             
@@ -224,7 +234,7 @@ def process_mri_direct(job_id: str):
         except Exception as e:
             # Mark job as failed
             error_message = f"Processing failed: {str(e)}"
-            JobService.fail_job(db, job_uuid, error_message)
+            JobService.fail_job(db, job_uuid_canonical, error_message)
             
             logger.error(
                 "processing_failed",
