@@ -324,9 +324,18 @@ class MRIProcessor:
         metrics = self._calculate_asymmetry(hippocampal_stats)
         
         # Step 5: Generate segmentation visualizations
+        # Note: This step is optional and should not fail the job if it errors
         if self.progress_callback:
             self.progress_callback(75, "Generating visualizations...")
-        visualization_paths = self._generate_visualizations(nifti_path, fastsurfer_output)
+        try:
+            visualization_paths = self._generate_visualizations(nifti_path, fastsurfer_output)
+        except Exception as viz_error:
+            logger.warning(
+                "visualization_generation_failed",
+                error=str(viz_error),
+                note="Continuing with metrics only - visualizations may be incomplete"
+            )
+            visualization_paths = {}
         
         # Step 6: Save results
         if self.progress_callback:
@@ -526,6 +535,13 @@ class MRIProcessor:
             
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
+            
+            # Force amd64 platform on Apple Silicon (ARM64) for compatibility
+            # FastSurfer image may not have native ARM64 support
+            import platform
+            if platform.machine() == "arm64":
+                cmd.extend(["--platform", "linux/amd64"])
+                logger.info("using_platform_emulation", note="Forcing amd64 platform for ARM64 compatibility")
             
             # Add GPU support if available
             if runtime_arg:
@@ -783,31 +799,23 @@ class MRIProcessor:
         stats_dir = output_dir / str(self.job_id) / "stats"
         stats_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create mock hippocampal subfields stats file
-        mock_data = {
-            "CA1": {"left": 1250.5, "right": 1198.2},
-            "CA3": {"left": 450.3, "right": 465.1},
-            "subiculum": {"left": 580.7, "right": 555.9},
-            "dentate_gyrus": {"left": 380.2, "right": 395.6},
-        }
+        # Create mock aseg+DKT.stats file (required for _extract_hippocampal_data)
+        # This is the format that _extract_hippocampal_data expects!
+        aseg_stats = stats_dir / "aseg+DKT.stats"
+        with open(aseg_stats, "w") as f:
+            f.write("# Table of FreeSurfer cortical parcellation anatomical statistics\n")
+            f.write("#\n")
+            f.write("# ColHeaders  Index SegId NVoxels Volume_mm3 StructName\n")
+            # Mock hippocampal volumes (in mm³)
+            # Left hippocampus (label 17) - slightly smaller for testing
+            f.write(f" 17 17   3500  3500.0  Left-Hippocampus\n")
+            # Right hippocampus (label 53) - slightly larger
+            f.write(f" 53 53   3800  3800.0  Right-Hippocampus\n")
         
-        # Write left hemisphere stats
-        left_stats = stats_dir / "lh.hippoSfVolumes-T1.v21.txt"
-        with open(left_stats, "w") as f:
-            f.write("# Hippocampal subfield volumes (left hemisphere)\n")
-            f.write("# Region Volume\n")
-            for region, volumes in mock_data.items():
-                f.write(f"{region} {volumes['left']:.2f}\n")
-        
-        # Write right hemisphere stats
-        right_stats = stats_dir / "rh.hippoSfVolumes-T1.v21.txt"
-        with open(right_stats, "w") as f:
-            f.write("# Hippocampal subfield volumes (right hemisphere)\n")
-            f.write("# Region Volume\n")
-            for region, volumes in mock_data.items():
-                f.write(f"{region} {volumes['right']:.2f}\n")
-        
-        logger.info("mock_output_created", output_dir=str(output_dir))
+        logger.info("mock_output_created", 
+                   output_dir=str(output_dir),
+                   left_volume=3500.0,
+                   right_volume=3800.0)
     
     def _extract_hippocampal_data(self, fastsurfer_dir: Path) -> Dict:
         """
