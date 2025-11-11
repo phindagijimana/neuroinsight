@@ -10,8 +10,14 @@ import shutil
 from pathlib import Path
 from typing import BinaryIO, Optional
 
-from minio import Minio
-from minio.error import S3Error
+try:
+    from minio import Minio
+    from minio.error import S3Error
+    MINIO_AVAILABLE = True
+except ImportError:
+    MINIO_AVAILABLE = False
+    Minio = None
+    S3Error = None
 
 from backend.core.config import get_settings
 from backend.core.logging import get_logger
@@ -25,13 +31,17 @@ class StorageService:
     Service class for file storage operations.
     
     Supports both local filesystem and MinIO/S3 storage backends.
+    In desktop mode, only uses local filesystem.
     """
     
     def __init__(self):
-        """Initialize storage service with MinIO client."""
-        self.use_s3 = hasattr(settings, "minio_endpoint")
+        """Initialize storage service with MinIO client (if available)."""
+        # Desktop mode: always use local storage (no S3/MinIO needed)
+        desktop_mode = getattr(settings, "desktop_mode", False)
         
-        if self.use_s3:
+        self.use_s3 = False
+        if not desktop_mode and MINIO_AVAILABLE and hasattr(settings, "minio_endpoint"):
+            self.use_s3 = True
             self.client = Minio(
                 settings.minio_endpoint,
                 access_key=settings.minio_access_key,
@@ -40,6 +50,9 @@ class StorageService:
             )
             self._ensure_bucket()
         else:
+            # Desktop mode or MinIO not available: use local storage only
+            if desktop_mode and not MINIO_AVAILABLE:
+                logger.info("desktop_mode_storage", message="Using local storage only (MinIO not available)")
             # Ensure local directories exist
             Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
             Path(settings.output_dir).mkdir(parents=True, exist_ok=True)
