@@ -215,8 +215,10 @@ async function createWindow() {
     log.info('Backend is ready!');
     
     // Load the frontend HTML file (bundled with Electron)
-    // The frontend/index.html is now bundled inside app.asar
-    const frontendPath = path.join(__dirname, 'frontend', 'index.html');
+    // The frontend is now in extraResources (outside app.asar, like backend)
+    const frontendPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'frontend', 'index.html')
+      : path.join(__dirname, '..', 'frontend', 'index.html');
     log.info(`Loading frontend from: ${frontendPath}`);
     
     // First, set the backend URL before loading the page

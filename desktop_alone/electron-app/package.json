@@ -42,15 +42,15 @@
     "files": [
       "src/**/*",
       "assets/**/*",
+      "!**/*.map",
+      "!**/.DS_Store"
+    ],
+    "extraResources": [
       {
         "from": "../frontend",
         "to": "frontend",
         "filter": ["**/*"]
       },
-      "!**/*.map",
-      "!**/.DS_Store"
-    ],
-    "extraResources": [
       {
         "from": "../dist/neuroinsight-backend",
         "to": "backend",
