@@ -99,32 +99,36 @@ class MetricService:
         return metrics
     
     @staticmethod
-    def get_metric(db: Session, metric_id: UUID) -> Optional[Metric]:
+    def get_metric(db: Session, metric_id) -> Optional[Metric]:
         """
         Retrieve a metric by ID.
         
         Args:
             db: Database session
-            metric_id: Metric identifier
+            metric_id: Metric identifier (UUID or string - will be converted to string for SQLite)
         
         Returns:
             Metric instance if found, None otherwise
         """
-        return db.query(Metric).filter(Metric.id == metric_id).first()
+        # Convert to string for SQLite compatibility
+        metric_id_str = str(metric_id)
+        return db.query(Metric).filter(Metric.id == metric_id_str).first()
     
     @staticmethod
-    def get_metrics_by_job(db: Session, job_id: UUID) -> List[Metric]:
+    def get_metrics_by_job(db: Session, job_id) -> List[Metric]:
         """
         Retrieve all metrics for a specific job.
         
         Args:
             db: Database session
-            job_id: Job identifier
+            job_id: Job identifier (UUID or string - will be converted to string for SQLite)
         
         Returns:
             List of metric instances
         """
-        return db.query(Metric).filter(Metric.job_id == job_id).all()
+        # Convert to string for SQLite compatibility
+        job_id_str = str(job_id)
+        return db.query(Metric).filter(Metric.job_id == job_id_str).all()
     
     @staticmethod
     def get_metrics_by_region(db: Session, region: str) -> List[Metric]:
