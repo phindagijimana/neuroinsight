@@ -561,12 +561,18 @@ class MRIProcessor:
                 cmd.extend(["--platform", "linux/amd64"])
                 logger.info("using_platform_emulation", note="Forcing amd64 platform for ARM64 compatibility")
             
-            # Run as root to avoid "nonroot user not found" error on macOS
-            # The FastSurfer image tries to switch to a nonroot user internally
-            # which doesn't exist on macOS systems. Running as root in the container
-            # is safe for desktop mode since the container is isolated.
-            cmd.extend(["--user", "root"])
-            logger.info("docker_user_override", note="Running as root to avoid user mapping issues on macOS")
+            # Map current user to container to avoid permission issues
+            # FastSurfer rejects running as root, so we map the host user's UID:GID
+            # This allows FastSurfer to run with proper permissions on macOS
+            current_uid = os.getuid()
+            current_gid = os.getgid()
+            cmd.extend(["--user", f"{current_uid}:{current_gid}"])
+            logger.info(
+                "docker_user_mapping",
+                uid=current_uid,
+                gid=current_gid,
+                note="Mapping host user to container for proper permissions"
+            )
             
             # Add GPU support if available
             if runtime_arg:
