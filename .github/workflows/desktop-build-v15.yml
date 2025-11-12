@@ -195,10 +195,10 @@ jobs:
           ls -la
           echo ""
           echo "Looking for Windows installer..."
-          if ls NeuroInsight*Setup*.exe 1> /dev/null 2>&1; then
+          if ls NeuroInsight*Setup*.exe 1> /dev/null 2>&1 || ls "NeuroInsight Setup"*.exe 1> /dev/null 2>&1; then
             echo "✅ Found Windows installer"
             echo "Generating SHA256 checksums..."
-            sha256sum NeuroInsight*Setup*.exe > checksums-windows.txt
+            sha256sum NeuroInsight*Setup*.exe > checksums-windows.txt 2>/dev/null || sha256sum "NeuroInsight Setup"*.exe > checksums-windows.txt
             echo "Checksums generated:"
             cat checksums-windows.txt
           else
@@ -215,7 +215,8 @@ jobs:
         with:
           name: neuroinsight-windows
           path: |
-            desktop_alone/electron-app/dist/NeuroInsight-Setup-*.exe
+            desktop_alone/electron-app/dist/NeuroInsight Setup *.exe
+            desktop_alone/electron-app/dist/NeuroInsight*Setup*.exe
             desktop_alone/electron-app/dist/checksums-windows.txt
           retention-days: 30
   
