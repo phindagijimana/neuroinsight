@@ -31,7 +31,7 @@ async def upload_mri(
     """Upload an MRI scan for processing (T1-only).
 
     - Accepts DICOM series or NIfTI files (.nii, .nii.gz)
-    - Strict pre-validation: size, readability, voxel/header sanity, and T1 markers
+    - Simple validation: file size, extension, and "T1" in filename
     - Creates a new job and enqueues background processing task
     """
     # Validate file
@@ -65,6 +65,14 @@ async def upload_mri(
             detail=f"Invalid file type. Supported: {', '.join(valid_extensions)}"
         )
     
+    # Simple T1 validation: require "T1" in filename (case-insensitive)
+    filename_lower = file.filename.lower()
+    if "t1" not in filename_lower:
+        raise HTTPException(
+            status_code=400,
+            detail='Filename must contain "T1" (case-insensitive). Example: patient_001_T1w.nii.gz'
+        )
+    
     logger.info(
         "upload_received",
         filename=file.filename,
@@ -75,90 +83,8 @@ async def upload_mri(
     # Generate unique filename early for cleanup on failure
     unique_filename = None
     try:
-        # Read file content once for validation and saving
+        # Read file content once for saving (no complex validation)
         file_data = await file.read()
-        
-        # Optional strict validation for NIfTI files before saving to long-term storage
-        if file.filename.endswith((".nii", ".nii.gz")):
-            import tempfile
-            import nibabel as nib
-            import numpy as np
-
-            # For .nii.gz files, we need to preserve the full extension or use a specific suffix
-            # nibabel needs to detect the file type correctly
-            file_suffix = Path(file.filename).suffix
-            if file.filename.endswith('.nii.gz'):
-                # Use .nii.gz suffix for proper nibabel detection
-                temp_suffix = '.nii.gz'
-            else:
-                temp_suffix = file_suffix
-            
-            with tempfile.NamedTemporaryFile(suffix=temp_suffix, delete=True) as tmp:
-                # Persist upload to temp
-                tmp.write(file_data)
-                tmp.flush()
-
-                # Load with nibabel
-                try:
-                    img = nib.load(tmp.name)
-                except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Invalid NIfTI file: {str(e)}")
-
-                # Basic header/shape sanity
-                shape = img.shape
-                if len(shape) < 3:
-                    raise HTTPException(status_code=400, detail=f"Expected 3D/4D NIfTI, got shape {shape}")
-                # If 4D treat as first volume acceptable
-                if len(shape) >= 3:
-                    if any(dim < 32 for dim in shape[:3]):
-                        raise HTTPException(status_code=400, detail=f"Image dimensions too small {shape[:3]} (min 32x32x32)")
-                    zooms = img.header.get_zooms()[:3]
-                    # Voxel size sanity: 0.2mm to 5mm typical
-                    if any(z <= 0 for z in zooms) or any(z > 5.0 for z in zooms) or any(z < 0.2 for z in zooms):
-                        raise HTTPException(status_code=400, detail=f"Unusual voxel spacing {zooms} (expected 0.2–5.0 mm)")
-                # Data sanity: not all zeros/NaN
-                arr = img.get_fdata(dtype=np.float32)
-                if not np.isfinite(arr).any():
-                    raise HTTPException(status_code=400, detail="Image contains no finite values")
-                if np.allclose(arr, 0.0):
-                    raise HTTPException(status_code=400, detail="Image appears to be all zeros")
-
-                # T1 modality heuristic: prefer filenames/descriptions indicating T1
-                name_lower = file.filename.lower()
-                # Some NIfTI headers store 'descrip' as a numpy array; coerce to bytes safely
-                hdr_val = img.header.get("descrip")
-                try:
-                    if hdr_val is None:
-                        descrip = ""
-                    elif isinstance(hdr_val, (bytes, bytearray)):
-                        descrip = hdr_val.decode(errors="ignore")
-                    else:
-                        # numpy array or other type
-                        descrip = bytes(hdr_val).decode(errors="ignore")
-                except Exception:
-                    descrip = ""
-                descrip = descrip.lower()
-                # Previously enforced T1 markers in filename/header. Per request, allow all NIfTI uploads.
-        elif file.filename.endswith((".dcm", ".dicom")):
-            # Quick DICOM check for T1 using SeriesDescription/ProtocolName if pydicom present
-            try:
-                import pydicom
-                import tempfile
-                # For DICOM files, use the original suffix
-                file_suffix = Path(file.filename).suffix
-                with tempfile.NamedTemporaryFile(suffix=file_suffix, delete=True) as tmp:
-                    tmp.write(file_data)
-                    tmp.flush()
-                    ds = pydicom.dcmread(tmp.name, stop_before_pixels=True, force=True)
-                    series_desc = str(getattr(ds, "SeriesDescription", "")).lower()
-                    protocol = str(getattr(ds, "ProtocolName", "")).lower()
-                    seq_name = str(getattr(ds, "SequenceName", "")).lower()
-                    # Previously enforced T1 markers for DICOM. Per request, allow all DICOM uploads.
-            except ModuleNotFoundError:
-                # Fallback: filename check only
-                nm = file.filename.lower()
-                if not any(k in nm for k in ["t1", "mprage", "spgr", "tfl", "tfe"]):
-                    raise HTTPException(status_code=400, detail="DICOM appears not to be T1-weighted (install pydicom for better detection)")
 
         # Generate unique filename
         unique_filename = f"{uuid.uuid4()}_{file.filename}"
@@ -201,7 +127,15 @@ async def upload_mri(
         
         return job
     
-    except HTTPException:
+    except HTTPException as http_exc:
+        # Log validation error details before re-raising
+        logger.error(
+            "upload_validation_failed",
+            filename=file.filename,
+            status_code=http_exc.status_code,
+            detail=http_exc.detail,
+            file_size=file_size if 'file_size' in locals() else 'unknown',
+        )
         # Re-raise HTTP exceptions (validation errors)
         # No cleanup needed - file wasn't saved yet
         raise
