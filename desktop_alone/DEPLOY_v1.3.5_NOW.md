@@ -189,3 +189,5 @@ After v1.3.5 is stable and deployed:
 - Deployment steps: This file
 - Logs location: `~/Library/Logs/NeuroInsight/main.log` (macOS)
 
+
+

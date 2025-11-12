@@ -95,78 +95,6 @@ class DockerNotAvailableError(Exception):
         self.instructions = error_info['instructions']
 
 
-class InvalidImageTypeError(Exception):
-    """Raised when the uploaded image is not T1-weighted or unsuitable for processing."""
-    
-    def __init__(self, detected_type="unknown", details=""):
-        """
-        Initialize InvalidImageTypeError with user-friendly message.
-        
-        Args:
-            detected_type: The type of image detected (e.g., "T2", "FLAIR", "unknown")
-            details: Additional details about why the image was rejected
-        """
-        type_messages = {
-            "T2": "T2-weighted MRI detected",
-            "FLAIR": "FLAIR sequence detected",
-            "DWI": "Diffusion-weighted imaging (DWI) detected",
-            "fMRI": "Functional MRI (fMRI) detected",
-            "unknown": "Filename does not indicate T1-weighted image"
-        }
-        
-        detected_msg = type_messages.get(detected_type, type_messages["unknown"])
-        
-        full_message = f"\n{'='*60}\n"
-        full_message += "Invalid MRI Sequence Type\n"
-        full_message += f"{'='*60}\n\n"
-        full_message += f"{detected_msg}.\n\n"
-        if details:
-            full_message += f"Details: {details}\n\n"
-        
-        # Special message for filename issues (detected_type == "unknown")
-        if detected_type == "unknown" and "does not contain" in details:
-            full_message += "NeuroInsight requires T1-weighted MRI scans.\n\n"
-            full_message += "📝 PLEASE RENAME YOUR FILE:\n\n"
-            full_message += "Your filename should contain 'T1' to indicate it's a\n"
-            full_message += "T1-weighted scan. For example:\n\n"
-            full_message += "   ✓ subject_T1w.nii\n"
-            full_message += "   ✓ brain_T1.nii\n"
-            full_message += "   ✓ patient_01_MPRAGE_T1.nii\n"
-            full_message += "   ✓ scan_T1-weighted.nii\n\n"
-            full_message += "What to do:\n"
-            full_message += "1. Rename your file to include 'T1' in the filename\n"
-            full_message += "2. Make sure you're uploading a T1-weighted scan\n"
-            full_message += "   (MPRAGE, SPGR, or 3D T1 sequences)\n"
-            full_message += "3. Upload the renamed file\n\n"
-            full_message += "Why: This helps ensure you're uploading the correct\n"
-            full_message += "scan type. FastSurfer requires T1-weighted images for\n"
-            full_message += "accurate hippocampal segmentation.\n"
-        else:
-            # Standard message for detected non-T1w sequences
-            full_message += "NeuroInsight requires T1-weighted MRI scans for accurate\n"
-            full_message += "hippocampal volumetric analysis.\n\n"
-            full_message += "What to do:\n"
-            full_message += "1. Verify you uploaded the correct scan series\n\n"
-            full_message += "2. Look for T1-weighted sequences in your MRI data:\n"
-            full_message += "   ✓ MPRAGE (most common for brain imaging)\n"
-            full_message += "   ✓ SPGR (Spoiled Gradient Recalled Echo)\n"
-            full_message += "   ✓ T1-FLAIR\n"
-            full_message += "   ✓ 3D T1 (volumetric T1)\n"
-            full_message += "   ✗ T2-weighted (wrong - different contrast)\n"
-            full_message += "   ✗ FLAIR (wrong - unless T1-FLAIR)\n"
-            full_message += "   ✗ DWI/DTI (wrong - diffusion imaging)\n"
-            full_message += "   ✗ fMRI/BOLD (wrong - functional imaging)\n\n"
-            full_message += "3. Rename the file to include 'T1' and upload it\n\n"
-            full_message += "Why: FastSurfer's AI model is trained exclusively on\n"
-            full_message += "T1-weighted images. Other sequence types will produce\n"
-            full_message += "incorrect segmentation and invalid volume measurements.\n"
-        
-        full_message += f"{'='*60}\n"
-        
-        super().__init__(full_message)
-        self.detected_type = detected_type
-
-
 class MRIProcessor:
     """
     Main processor for MRI hippocampal analysis.
@@ -227,65 +155,6 @@ class MRIProcessor:
         logger.info("gpu_not_detected", note="No GPU found - will use CPU for processing")
         return False
     
-    def _validate_t1w_image(self, nifti_path: Path) -> None:
-        """
-        Validate that the input image appears to be T1-weighted based on filename.
-        
-        Requires the filename to contain 'T1' to ensure proper organization.
-        Rejects files with 'T2', 'FLAIR', 'DWI' in the name.
-        
-        Args:
-            nifti_path: Path to NIfTI file to validate
-        
-        Raises:
-            InvalidImageTypeError: If filename doesn't indicate T1w or indicates other sequence
-        """
-        filename = nifti_path.name.lower()
-        
-        # First, check for non-T1w sequence keywords (fast rejection)
-        non_t1w_keywords = {
-            't2w': 'T2',
-            't2-w': 'T2',
-            '_t2_': 'T2',
-            '_t2.': 'T2',
-            'flair': 'FLAIR',
-            'dwi': 'DWI',
-            'dti': 'DWI',
-            'diffusion': 'DWI',
-            'bold': 'fMRI',
-            'task': 'fMRI',
-            'rest': 'fMRI',
-        }
-        
-        for keyword, detected_type in non_t1w_keywords.items():
-            if keyword in filename:
-                logger.warning(
-                    "non_t1w_sequence_in_filename",
-                    detected_type=detected_type,
-                    filename=filename
-                )
-                raise InvalidImageTypeError(
-                    detected_type=detected_type,
-                    details=f"Filename contains '{keyword}' - indicates {detected_type} sequence, not T1w"
-                )
-        
-        # Now check if filename contains 'T1' (case-insensitive)
-        t1w_indicators = ['t1w', 't1-w', '_t1_', '_t1.', 't1.nii', 't1.dcm', 'mprage', 'spgr']
-        has_t1_indicator = any(indicator in filename for indicator in t1w_indicators)
-        
-        if not has_t1_indicator:
-            logger.warning(
-                "filename_missing_t1_indicator",
-                filename=filename,
-                note="Filename does not contain T1 indicator - asking user to rename"
-            )
-            raise InvalidImageTypeError(
-                detected_type="unknown",
-                details=f"Filename '{nifti_path.name}' does not contain 'T1' indicator"
-            )
-        
-        logger.info("t1w_filename_validated", filename=filename, note="Filename indicates T1w sequence")
-    
     def process(self, input_path: str) -> Dict:
         """
         Execute the complete processing pipeline.
@@ -303,11 +172,6 @@ class MRIProcessor:
             self.progress_callback(17, "Preparing input file...")
         nifti_path = self._prepare_input(input_path)
         
-        # Step 1.5: Validate that image appears to be T1-weighted
-        if self.progress_callback:
-            self.progress_callback(18, "Validating image type (T1w required)...")
-        self._validate_t1w_image(nifti_path)
-        
         # Step 2: Run FastSurfer segmentation (whole brain) - LONGEST STEP
         if self.progress_callback:
             self.progress_callback(20, "Running FastSurfer brain segmentation (this may take a while)...")
@@ -324,18 +188,9 @@ class MRIProcessor:
         metrics = self._calculate_asymmetry(hippocampal_stats)
         
         # Step 5: Generate segmentation visualizations
-        # Note: This step is optional and should not fail the job if it errors
         if self.progress_callback:
             self.progress_callback(75, "Generating visualizations...")
-        try:
-            visualization_paths = self._generate_visualizations(nifti_path, fastsurfer_output)
-        except Exception as viz_error:
-            logger.warning(
-                "visualization_generation_failed",
-                error=str(viz_error),
-                note="Continuing with metrics only - visualizations may be incomplete"
-            )
-            visualization_paths = {}
+        visualization_paths = self._generate_visualizations(nifti_path, fastsurfer_output)
         
         # Step 6: Save results
         if self.progress_callback:
@@ -481,98 +336,82 @@ class MRIProcessor:
             else:
                 num_threads = 1
             
-            # Get host paths for Docker-in-Docker mounting
-            # When worker runs inside Docker and spawns FastSurfer Docker container,
-            # we need to mount HOST paths, not container paths
-            host_upload_dir = os.getenv('HOST_UPLOAD_DIR')
-            host_output_dir = os.getenv('HOST_OUTPUT_DIR')
-            
-            # Check if we're running in desktop mode (not containerized)
-            desktop_mode = os.getenv('DESKTOP_MODE', 'false').lower() == 'true'
-            
-            if desktop_mode:
-                # Desktop mode: backend runs directly on host, use actual file paths
-                input_host_path = str(nifti_path.parent.resolve())
-                output_host_path = str(fastsurfer_dir.resolve())
+            # Get host paths for Docker mounting
+            # Desktop mode: Use direct host paths from settings (Windows/Mac/Linux)
+            # Server mode: Use Docker-in-Docker paths from environment or auto-detection
+            if settings.desktop_mode:
+                # Desktop mode: Direct host paths (no Docker-in-Docker)
+                host_upload_dir = str(Path(settings.upload_dir).resolve())
+                host_output_dir = str(Path(settings.output_dir).resolve())
                 logger.info(
                     "desktop_mode_paths",
-                    input_path=input_host_path,
-                    output_path=output_host_path,
+                    input_path=host_upload_dir,
+                    output_path=f"{host_output_dir}/{self.job_id}/fastsurfer",
                     note="Using direct host paths for desktop mode"
                 )
-            elif not host_upload_dir or not host_output_dir:
-                # Docker-in-Docker mode: try to auto-detect from Docker inspect
-                try:
-                    # Get our own container info
-                    result = subprocess.run(
-                        ['docker', 'inspect', os.uname().nodename],
-                        capture_output=True,
-                        text=True,
-                        check=True
-                    )
-                    container_info = json.loads(result.stdout)[0]
-                    
-                    # Extract mount sources from our container
-                    for mount in container_info.get('Mounts', []):
-                        dest = mount.get('Destination', '')
-                        if dest == '/data/uploads' and not host_upload_dir:
-                            host_upload_dir = mount.get('Source')
-                        elif dest == '/data/outputs' and not host_output_dir:
-                            host_output_dir = mount.get('Source')
-                    
+            else:
+                # Server mode: Docker-in-Docker or environment variables
+                host_upload_dir = os.getenv('HOST_UPLOAD_DIR')
+                host_output_dir = os.getenv('HOST_OUTPUT_DIR')
+                
+                # If not set, try to auto-detect from Docker inspect (Unix only)
+                if not host_upload_dir or not host_output_dir:
+                    try:
+                        import subprocess
+                        import json
+                        import platform
+                        
+                        # Get hostname (cross-platform)
+                        if platform.system() == 'Windows':
+                            hostname = os.environ.get('COMPUTERNAME', 'localhost')
+                        else:
+                            hostname = os.uname().nodename
+                        
+                        # Get our own container info
+                        result = subprocess.run(
+                            ['docker', 'inspect', hostname],
+                            capture_output=True,
+                            text=True,
+                            check=True
+                        )
+                        container_info = json.loads(result.stdout)[0]
+                        
+                        # Extract mount sources from our container
+                        for mount in container_info.get('Mounts', []):
+                            dest = mount.get('Destination', '')
+                            if dest == '/data/uploads' and not host_upload_dir:
+                                host_upload_dir = mount.get('Source')
+                            elif dest == '/data/outputs' and not host_output_dir:
+                                host_output_dir = mount.get('Source')
+                        
+                        logger.info(
+                            "auto_detected_host_paths",
+                            upload_dir=host_upload_dir,
+                            output_dir=host_output_dir
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "host_path_detection_failed",
+                            error=str(e),
+                            note="Falling back to container paths (may fail)"
+                        )
+                        host_upload_dir = host_upload_dir or '/data/uploads'
+                        host_output_dir = host_output_dir or '/data/outputs'
+                else:
                     logger.info(
-                        "auto_detected_host_paths",
+                        "using_configured_host_paths",
                         upload_dir=host_upload_dir,
                         output_dir=host_output_dir
                     )
-                    
-                    # Calculate relative paths from host perspective
-                    # nifti_path is like /data/uploads/file.nii (inside worker container)
-                    # We need to translate to host path
-                    input_host_path = host_upload_dir
-                    output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
-                except Exception as e:
-                    logger.warning(
-                        "host_path_detection_failed",
-                        error=str(e),
-                        note="Falling back to container paths (may fail)"
-                    )
-                    host_upload_dir = host_upload_dir or '/data/uploads'
-                    host_output_dir = host_output_dir or '/data/outputs'
-                    input_host_path = host_upload_dir
-                    output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
-            else:
-                # Explicitly configured host paths
-                logger.info(
-                    "using_configured_host_paths",
-                    upload_dir=host_upload_dir,
-                    output_dir=host_output_dir
-                )
-                input_host_path = host_upload_dir
-                output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
+            
+            # Calculate relative paths from host perspective
+            # nifti_path is like /data/uploads/file.nii (inside worker container)
+            # We need to translate to host path
+            input_host_path = host_upload_dir
+            output_host_path = f"{host_output_dir}/{self.job_id}/fastsurfer"
             
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
-            
-            # Force amd64 platform on Apple Silicon (ARM64) for compatibility
-            # FastSurfer image may not have native ARM64 support
-            import platform
-            if platform.machine() == "arm64":
-                cmd.extend(["--platform", "linux/amd64"])
-                logger.info("using_platform_emulation", note="Forcing amd64 platform for ARM64 compatibility")
-            
-            # Map current user to container to avoid permission issues
-            # FastSurfer rejects running as root, so we map the host user's UID:GID
-            # This allows FastSurfer to run with proper permissions on macOS
-            current_uid = os.getuid()
-            current_gid = os.getgid()
-            cmd.extend(["--user", f"{current_uid}:{current_gid}"])
-            logger.info(
-                "docker_user_mapping",
-                uid=current_uid,
-                gid=current_gid,
-                note="Mapping host user to container for proper permissions"
-            )
             
             # Add GPU support if available
             if runtime_arg:
@@ -766,31 +605,57 @@ class MRIProcessor:
         # Using Popen instead of run() to track PID and manage process group
         process = None
         try:
-            # Create a new process group so we can kill all child processes
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                preexec_fn=os.setsid,  # Create new process group
-            )
+            # Create a new process group so we can kill all child processes (Unix only)
+            import platform
+            is_windows = platform.system() == 'Windows'
+            
+            if is_windows:
+                # Windows: No process groups, use CREATE_NEW_PROCESS_GROUP
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if hasattr(subprocess, 'CREATE_NEW_PROCESS_GROUP') else 0
+                )
+            else:
+                # Unix/Linux/Mac: Use process groups with setsid
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    preexec_fn=os.setsid,  # Create new process group (Unix only)
+                )
             
             # Store the process PID for cleanup tracking
             self._store_process_pid(process.pid)
-            logger.info("process_started", pid=process.pid, pgid=os.getpgid(process.pid))
+            if is_windows:
+                logger.info("process_started", pid=process.pid, platform="Windows")
+            else:
+                logger.info("process_started", pid=process.pid, pgid=os.getpgid(process.pid), platform="Unix")
             
             # Wait for process with timeout
             try:
                 stdout, stderr = process.communicate(timeout=7200)
                 returncode = process.returncode
             except subprocess.TimeoutExpired:
-                logger.warning("process_timeout_killing_group", pid=process.pid)
-                # Kill entire process group
+                logger.warning("process_timeout_killing", pid=process.pid)
+                # Kill process (method depends on platform)
                 try:
-                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                    process.wait(timeout=10)
+                    if is_windows:
+                        # Windows: Terminate the process tree
+                        process.terminate()
+                        process.wait(timeout=10)
+                    else:
+                        # Unix: Kill entire process group
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        process.wait(timeout=10)
                 except:
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    if is_windows:
+                        process.kill()
+                    else:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 raise
             finally:
                 self._clear_process_pid()
@@ -808,11 +673,15 @@ class MRIProcessor:
             return fastsurfer_dir
             
         except Exception as e:
-            # Ensure cleanup of process group on any error
+            # Ensure cleanup of process on any error
             if process and process.poll() is None:
-                logger.warning("cleaning_up_process_group_on_error", pid=process.pid)
+                logger.warning("cleaning_up_process_on_error", pid=process.pid)
                 try:
-                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    import platform
+                    if platform.system() == 'Windows':
+                        process.kill()
+                    else:
+                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 except:
                     pass
             self._clear_process_pid()
@@ -830,23 +699,31 @@ class MRIProcessor:
         stats_dir = output_dir / str(self.job_id) / "stats"
         stats_dir.mkdir(parents=True, exist_ok=True)
         
-        # Create mock aseg+DKT.stats file (required for _extract_hippocampal_data)
-        # This is the format that _extract_hippocampal_data expects!
-        aseg_stats = stats_dir / "aseg+DKT.stats"
-        with open(aseg_stats, "w") as f:
-            f.write("# Table of FreeSurfer cortical parcellation anatomical statistics\n")
-            f.write("#\n")
-            f.write("# ColHeaders  Index SegId NVoxels Volume_mm3 StructName\n")
-            # Mock hippocampal volumes (in mm³)
-            # Left hippocampus (label 17) - slightly smaller for testing
-            f.write(f" 17 17   3500  3500.0  Left-Hippocampus\n")
-            # Right hippocampus (label 53) - slightly larger
-            f.write(f" 53 53   3800  3800.0  Right-Hippocampus\n")
+        # Create mock hippocampal subfields stats file
+        mock_data = {
+            "CA1": {"left": 1250.5, "right": 1198.2},
+            "CA3": {"left": 450.3, "right": 465.1},
+            "subiculum": {"left": 580.7, "right": 555.9},
+            "dentate_gyrus": {"left": 380.2, "right": 395.6},
+        }
         
-        logger.info("mock_output_created", 
-                   output_dir=str(output_dir),
-                   left_volume=3500.0,
-                   right_volume=3800.0)
+        # Write left hemisphere stats
+        left_stats = stats_dir / "lh.hippoSfVolumes-T1.v21.txt"
+        with open(left_stats, "w") as f:
+            f.write("# Hippocampal subfield volumes (left hemisphere)\n")
+            f.write("# Region Volume\n")
+            for region, volumes in mock_data.items():
+                f.write(f"{region} {volumes['left']:.2f}\n")
+        
+        # Write right hemisphere stats
+        right_stats = stats_dir / "rh.hippoSfVolumes-T1.v21.txt"
+        with open(right_stats, "w") as f:
+            f.write("# Hippocampal subfield volumes (right hemisphere)\n")
+            f.write("# Region Volume\n")
+            for region, volumes in mock_data.items():
+                f.write(f"{region} {volumes['right']:.2f}\n")
+        
+        logger.info("mock_output_created", output_dir=str(output_dir))
     
     def _extract_hippocampal_data(self, fastsurfer_dir: Path) -> Dict:
         """
