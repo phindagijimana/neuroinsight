@@ -6,6 +6,7 @@ from DICOM conversion through hippocampal asymmetry calculation.
 """
 
 import json
+import platform
 import subprocess as subprocess_module
 from pathlib import Path
 from typing import Dict, List
@@ -358,7 +359,6 @@ class MRIProcessor:
                 if not host_upload_dir or not host_output_dir:
                     try:
                         import json
-                        import platform
                         
                         # Get hostname (cross-platform)
                         if platform.system() == 'Windows':
@@ -415,6 +415,11 @@ class MRIProcessor:
             # Add GPU support if available
             if runtime_arg:
                 cmd.extend(runtime_arg.split())
+            
+            # On Windows, FastSurfer image defaults to user "nonroot" which cannot access
+            # NTFS-mounted host paths. Override to root to ensure permissions.
+            if settings.desktop_mode and platform.system() == "Windows":
+                cmd.extend(["--user", "root"])
             
             # Add volume mounts with HOST paths
             cmd.extend([
@@ -605,7 +610,6 @@ class MRIProcessor:
         process = None
         try:
             # Create a new process group so we can kill all child processes (Unix only)
-            import platform
             is_windows = platform.system() == 'Windows'
             
             if is_windows:
@@ -676,7 +680,6 @@ class MRIProcessor:
             if process and process.poll() is None:
                 logger.warning("cleaning_up_process_on_error", pid=process.pid)
                 try:
-                    import platform
                     if platform.system() == 'Windows':
                         process.kill()
                     else:
