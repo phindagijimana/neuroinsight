@@ -109,8 +109,46 @@ jobs:
         working-directory: desktop_alone
         run: |
           echo "Building backend with PyInstaller..."
-          pyinstaller build.spec --clean --noconfirm
-          echo "Backend built successfully!"
+          echo "PyInstaller version:"
+          pyinstaller --version
+          echo ""
+          echo "Python version:"
+          python --version
+          echo ""
+          echo "Starting build..."
+          pyinstaller build.spec --clean --noconfirm --log-level=INFO 2>&1 | tee pyinstaller.log
+          echo ""
+          echo "PyInstaller build complete!"
+          echo ""
+          echo "Checking for errors or warnings..."
+          if grep -i "error" pyinstaller.log; then
+            echo "⚠️ Errors found in PyInstaller output"
+          fi
+          if grep -i "warning" pyinstaller.log | head -10; then
+            echo "⚠️ Warnings found (showing first 10)"
+          fi
+          echo ""
+          echo "Verifying backend was built..."
+          if [ -d "dist/neuroinsight-backend" ]; then
+            echo "✅ Backend directory exists"
+            ls -lh dist/neuroinsight-backend/ | head -20
+          else
+            echo "❌ ERROR: Backend directory not found!"
+            echo "Contents of dist/:"
+            ls -lh dist/ || echo "dist/ directory doesn't exist"
+            exit 1
+          fi
+          echo ""
+          echo "Checking for backend executable..."
+          if [ -f "dist/neuroinsight-backend/neuroinsight-backend.exe" ]; then
+            echo "✅ Windows backend executable found"
+            ls -lh dist/neuroinsight-backend/neuroinsight-backend.exe
+          else
+            echo "❌ ERROR: neuroinsight-backend.exe not found!"
+            echo "Files in backend directory:"
+            find dist/neuroinsight-backend -type f | head -20
+            exit 1
+          fi
         shell: bash
       
       - name: Verify frontend exists
@@ -130,8 +168,23 @@ jobs:
         working-directory: desktop_alone/electron-app
         run: |
           echo "Building Electron installer with FIXED frontend bundling..."
+          echo ""
+          echo "Checking prerequisites..."
+          if [ ! -d "../dist/neuroinsight-backend" ]; then
+            echo "❌ ERROR: Backend not found at ../dist/neuroinsight-backend"
+            exit 1
+          fi
+          if [ ! -d "../frontend" ]; then
+            echo "❌ ERROR: Frontend not found at ../frontend"
+            exit 1
+          fi
+          echo "✅ Prerequisites verified"
+          echo ""
+          echo "Running electron-builder..."
           npm run build:win
-          echo "Build complete!"
+          echo ""
+          echo "Build complete! Checking output..."
+          ls -lh dist/
         shell: bash
       
       - name: Generate checksums
@@ -140,10 +193,21 @@ jobs:
           echo "Generating checksums..."
           echo "Files in dist directory:"
           ls -la
-          echo "Generating SHA256 for .exe files..."
-          sha256sum NeuroInsight*.exe > checksums-windows.txt || sha256sum *Setup*.exe > checksums-windows.txt || echo "ERROR: No .exe files found!"
-          echo "Checksum file:"
-          cat checksums-windows.txt || echo "No checksum file created"
+          echo ""
+          echo "Looking for Windows installer..."
+          if ls NeuroInsight*Setup*.exe 1> /dev/null 2>&1; then
+            echo "✅ Found Windows installer"
+            echo "Generating SHA256 checksums..."
+            sha256sum NeuroInsight*Setup*.exe > checksums-windows.txt
+            echo "Checksums generated:"
+            cat checksums-windows.txt
+          else
+            echo "❌ ERROR: No Windows installer (.exe) found!"
+            echo "This means electron-builder failed to create the installer."
+            echo "Available files in dist/:"
+            find . -type f
+            exit 1
+          fi
         shell: bash
       
       - name: Upload artifacts
