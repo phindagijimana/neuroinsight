@@ -29,7 +29,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r desktop_alone/requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller requests
       
       - name: Build Python backend
         working-directory: desktop_alone
@@ -64,6 +64,19 @@ jobs:
         run: |
           echo "Verifying frontend is bundled in app.asar..."
           npx asar list app.asar | grep "frontend/index.html" && echo "✅ Frontend is bundled!" || echo "❌ Frontend missing!"
+      
+      - name: Verify Docker availability (Linux)
+        run: |
+          docker --version
+          docker run --rm hello-world
+      
+      - name: Run backend smoke test (Linux)
+        run: |
+          python tests/smoke_test.py \
+            --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
+            --workspace smoke-linux \
+            --api-port 8765 \
+            --timeout 900
       
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
@@ -103,7 +116,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r desktop_alone/requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller requests
       
       - name: Build Python backend
         working-directory: desktop_alone
@@ -210,6 +223,17 @@ jobs:
           fi
         shell: bash
       
+      - name: Verify Docker availability (Windows)
+        run: |
+          docker --version
+          docker run --rm mcr.microsoft.com/windows/nanoserver:ltsc2022 cmd /c echo "hello from docker"
+        shell: powershell
+      
+      - name: Run backend smoke test (Windows)
+        run: |
+          python tests\smoke_test.py --backend-exe desktop_alone\dist\neuroinsight-backend\neuroinsight-backend.exe --workspace smoke-windows --api-port 8766 --timeout 1200
+        shell: powershell
+      
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -242,7 +266,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r desktop_alone/requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller requests
       
       - name: Build Python backend
         working-directory: desktop_alone
@@ -281,6 +305,21 @@ jobs:
           if [ -d "NeuroInsight.app" ]; then
             find NeuroInsight.app -name "index.html" && echo "✅ Frontend is bundled!" || echo "❌ Frontend missing!"
           fi
+      
+      - name: Install and start Docker (macOS)
+        run: |
+          brew install docker colima
+          colima start --cpu 2 --memory 4 --disk 20 --arch x86_64
+          docker --version
+          docker run --rm hello-world
+      
+      - name: Run backend smoke test (macOS)
+        run: |
+          python tests/smoke_test.py \
+            --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
+            --workspace smoke-macos \
+            --api-port 8767 \
+            --timeout 900
       
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist

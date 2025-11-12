@@ -6,6 +6,7 @@ from DICOM conversion through hippocampal asymmetry calculation.
 """
 
 import json
+import os
 import platform
 import subprocess as subprocess_module
 from pathlib import Path
@@ -260,6 +261,15 @@ class MRIProcessor:
         
         fastsurfer_dir = self.output_dir / "fastsurfer"
         fastsurfer_dir.mkdir(exist_ok=True)
+        
+        # Smoke-test shortcut: skip Docker run but still generate mock output
+        if os.getenv("FASTSURFER_SMOKE_TEST") == "1":
+            logger.info(
+                "fastsurfer_smoke_test_mode",
+                note="Skipping Docker execution and generating mock output"
+            )
+            self._create_mock_fastsurfer_output(fastsurfer_dir)
+            return fastsurfer_dir
         
         # Check if Docker is available and running
         try:
