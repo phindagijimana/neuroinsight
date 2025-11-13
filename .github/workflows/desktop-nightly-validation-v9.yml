@@ -127,22 +127,18 @@ jobs:
           pyinstaller build.spec --clean --noconfirm
 
       - name: Run FastSurfer end-to-end (Windows)
-        shell: powershell
+        shell: bash
         run: |
-          Write-Host "Linux containers are not supported on hosted Windows runners; running smoke fallback."
-          $logPath = "nightly-windows.log"
-          if (Test-Path $logPath) {
-            Remove-Item $logPath -Force
-          }
-          & python tests\smoke_test.py `
-            --backend-exe desktop_alone\dist\neuroinsight-backend\neuroinsight-backend.exe `
-            --workspace nightly-windows `
-            --api-port 8876 `
-            --timeout 1800 `
-            --fastsurfer-mode smoke `
-            --input-nii "$env:SAMPLE_T1_PATH" `
-          2>&1 | Tee-Object -FilePath $logPath
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          set -euo pipefail
+          echo "Linux containers are not supported on hosted Windows runners; running smoke fallback."
+          python tests/smoke_test.py \
+            --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend.exe \
+            --workspace nightly-windows \
+            --api-port 8876 \
+            --timeout 1800 \
+            --fastsurfer-mode smoke \
+            --input-nii "$SAMPLE_T1_PATH" \
+          2>&1 | tee nightly-windows.log
 
       - name: Upload nightly log (Windows)
         if: always()
