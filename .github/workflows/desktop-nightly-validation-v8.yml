@@ -140,7 +140,7 @@ jobs:
             --api-port 8876 `
             --timeout 1800 `
             --fastsurfer-mode smoke `
-            --input-nii desktop_alone\sample_image\sub-1_T1w.nii.gz `
+            --input-nii "$env:SAMPLE_T1_PATH" `
           2>&1 | Tee-Object -FilePath $logPath
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
