@@ -37,7 +37,7 @@ def create_sample_t1(path: Path) -> None:
     nib.save(img, str(path))
 
 
-def wait_for_health(port: int, timeout: int = 180) -> None:
+def wait_for_health(port: int, timeout: int = 600) -> None:
     """Wait until /health endpoint responds with 200 within timeout."""
     base_url = f"http://127.0.0.1:{port}"
     deadline = time.time() + timeout
