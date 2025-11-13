@@ -70,9 +70,19 @@ def poll_job(port: int, job_id: str, timeout: int = 600) -> dict:
     base_url = f"http://127.0.0.1:{port}"
     deadline = time.time() + timeout
     while time.time() < deadline:
-        resp = requests.get(f"{base_url}/jobs/{job_id}", timeout=10)
-        resp.raise_for_status()
-        payload = resp.json()
+        try:
+            resp = requests.get(f"{base_url}/jobs/{job_id}", timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+        except requests.Timeout:
+            print(f"[smoke-test] WARNING: Polling {base_url}/jobs/{job_id} timed out; retrying...")
+            time.sleep(3)
+            continue
+        except requests.RequestException as exc:
+            print(f"[smoke-test] WARNING: Polling request error: {exc}; retrying...")
+            time.sleep(3)
+            continue
+
         status = payload.get("status")
         if status in {"COMPLETED", "FAILED"}:
             return payload

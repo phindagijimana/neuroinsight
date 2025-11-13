@@ -409,13 +409,14 @@ class MRIProcessor:
             cmd = ["docker", "run", "--rm"]
             
             allow_root = False
+            force_root = os.getenv("FASTSURFER_FORCE_ROOT") == "1"
             # Add GPU support if available
             if runtime_arg:
                 cmd.extend(runtime_arg.split())
             
             # On Windows desktop mode, FastSurfer image defaults to user "nonroot"
             # which cannot read NTFS-mounted paths. Override to root and allow root exec.
-            if settings.desktop_mode and platform.system() == "Windows":
+            if settings.desktop_mode and (platform.system() == "Windows" or force_root):
                 cmd.extend(["--user", "root"])
                 allow_root = True
             

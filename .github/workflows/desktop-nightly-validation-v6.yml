@@ -69,6 +69,8 @@ jobs:
           docker pull $FASTSURFER_IMAGE
 
       - name: Run FastSurfer end-to-end (Linux)
+        env:
+          FASTSURFER_FORCE_ROOT: "1"
         run: |
           set -euo pipefail
           python tests/smoke_test.py \
@@ -116,11 +118,7 @@ jobs:
       - name: Clear pip cache
         shell: pwsh
         run: |
-          try {
-            python -m pip cache purge | Out-Null
-          } catch {
-            Write-Warning "pip cache purge failed: $($_.Exception.Message)"
-          }
+          Write-Host "pip cache disabled via PIP_NO_CACHE_DIR; skipping purge"
 
       - name: Install Python dependencies
         run: |
@@ -194,7 +192,7 @@ jobs:
         run: |
           brew install qemu docker colima lima lima-additional-guestagents
           colima start --cpu 4 --memory 8 --disk 30 --arch x86_64
-          colima docker-env --shell bash >> "$GITHUB_ENV"
+          colima env --shell bash >> "$GITHUB_ENV"
           docker context use colima
 
       - name: Prepare Docker (macOS)
