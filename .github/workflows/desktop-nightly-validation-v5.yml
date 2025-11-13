@@ -116,7 +116,11 @@ jobs:
       - name: Clear pip cache
         shell: pwsh
         run: |
-          python -m pip cache purge 2>$null
+          try {
+            python -m pip cache purge | Out-Null
+          } catch {
+            Write-Warning "pip cache purge failed: $($_.Exception.Message)"
+          }
 
       - name: Install Python dependencies
         run: |
@@ -190,6 +194,8 @@ jobs:
         run: |
           brew install qemu docker colima lima lima-additional-guestagents
           colima start --cpu 4 --memory 8 --disk 30 --arch x86_64
+          colima docker-env --shell bash >> "$GITHUB_ENV"
+          docker context use colima
 
       - name: Prepare Docker (macOS)
         run: |
@@ -219,5 +225,6 @@ jobs:
         with:
           name: nightly-macos-log
           path: nightly-macos.log
+
 
 

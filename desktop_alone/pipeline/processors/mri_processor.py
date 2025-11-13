@@ -374,16 +374,30 @@ class MRIProcessor:
                     logger.warning(
                         "host_path_detection_failed",
                         error=str(e),
-                        note="Falling back to container paths (may fail)"
+                        note="Falling back to configured desktop paths"
                     )
-                    host_upload_dir = host_upload_dir or '/data/uploads'
-                    host_output_dir = host_output_dir or '/data/outputs'
+                    host_upload_dir = host_upload_dir or ''
+                    host_output_dir = host_output_dir or ''
             else:
                 logger.info(
                     "using_configured_host_paths",
                     upload_dir=host_upload_dir,
                     output_dir=host_output_dir
                 )
+
+            # If host paths are still unset or point to placeholder mount locations,
+            # fall back to the actual desktop storage directories.
+            if not host_upload_dir or not Path(host_upload_dir).exists() or host_upload_dir == "/data/uploads":
+                host_upload_dir = str(Path(settings.upload_dir).resolve())
+
+            if not host_output_dir or not Path(host_output_dir).exists() or host_output_dir == "/data/outputs":
+                host_output_dir = str(Path(settings.output_dir).resolve())
+
+            logger.info(
+                "resolved_host_paths",
+                upload_dir=host_upload_dir,
+                output_dir=host_output_dir
+            )
             
             # Calculate relative paths from host perspective
             # nifti_path is like /data/uploads/file.nii (inside worker container)
@@ -404,7 +418,7 @@ class MRIProcessor:
             if settings.desktop_mode and platform.system() == "Windows":
                 cmd.extend(["--user", "root"])
                 allow_root = True
-
+            
             # Add volume mounts with HOST paths
             cmd.extend([
                 "-v", f"{input_host_path}:/input:ro",
