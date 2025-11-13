@@ -148,6 +148,11 @@ def main() -> None:
         env["FASTSURFER_SMOKE_TEST"] = "1"
     else:
         env.pop("FASTSURFER_SMOKE_TEST", None)
+    force_root_flag = os.environ.get("FASTSURFER_FORCE_ROOT")
+    if force_root_flag is not None:
+        env["FASTSURFER_FORCE_ROOT"] = force_root_flag
+    else:
+        env.pop("FASTSURFER_FORCE_ROOT", None)
     env["PORT"] = str(args.api_port)
     env["API_PORT"] = str(args.api_port)
     env["HOST"] = "127.0.0.1"

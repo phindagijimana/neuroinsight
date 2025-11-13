@@ -416,9 +416,13 @@ class MRIProcessor:
             
             # On Windows desktop mode, FastSurfer image defaults to user "nonroot"
             # which cannot read NTFS-mounted paths. Override to root and allow root exec.
+            force_root_reason = None
             if settings.desktop_mode and (platform.system() == "Windows" or force_root):
                 cmd.extend(["--user", "root"])
                 allow_root = True
+                force_root_reason = (
+                    "windows_desktop_mode" if platform.system() == "Windows" else "forced_by_env"
+                )
             
             # Add volume mounts with HOST paths
             cmd.extend([
@@ -436,6 +440,11 @@ class MRIProcessor:
             ])
 
             if allow_root:
+                logger.info(
+                    "forcing_root_user_for_fastsurfer",
+                    reason=force_root_reason,
+                    platform=platform.system(),
+                )
                 cmd.append("--allow_root")
             
             if device == "cpu":

@@ -115,11 +115,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Clear pip cache
-        shell: pwsh
-        run: |
-          Write-Host "pip cache disabled via PIP_NO_CACHE_DIR; skipping purge"
-
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip --no-cache-dir
@@ -190,9 +185,14 @@ jobs:
       - name: Install and start Colima
         id: install_colima
         run: |
+          set -euo pipefail
           brew install qemu docker colima lima lima-additional-guestagents
           colima start --cpu 4 --memory 8 --disk 30 --arch x86_64
-          colima env --shell bash >> "$GITHUB_ENV"
+          if colima env --help >/dev/null 2>&1; then
+            colima env --shell bash >> "$GITHUB_ENV"
+          else
+            colima docker-env --shell bash >> "$GITHUB_ENV"
+          fi
           docker context use colima
 
       - name: Prepare Docker (macOS)
