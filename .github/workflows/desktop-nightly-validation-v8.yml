@@ -232,6 +232,8 @@ jobs:
           docker pull $FASTSURFER_IMAGE
 
       - name: Run FastSurfer end-to-end (macOS)
+        env:
+          FASTSURFER_FORCE_ROOT: "1"
         run: |
           set -euo pipefail
           python tests/smoke_test.py \
