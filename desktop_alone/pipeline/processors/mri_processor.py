@@ -6,9 +6,8 @@ from DICOM conversion through hippocampal asymmetry calculation.
 """
 
 import json
-import os
 import platform
-import subprocess as subprocess_module
+import subprocess
 from pathlib import Path
 from typing import Dict, List
 from uuid import UUID
@@ -141,7 +140,7 @@ class MRIProcessor:
         """
         # Check if nvidia-smi exists and works
         try:
-            result = subprocess_module.run(
+            result = subprocess.run(
                 ["nvidia-smi"],
                 capture_output=True,
                 timeout=5,
@@ -151,7 +150,7 @@ class MRIProcessor:
                 logger.info("gpu_detected", note="NVIDIA GPU available for Singularity --nv flag")
                 return True
                 
-        except (subprocess_module.CalledProcessError, subprocess_module.TimeoutExpired, FileNotFoundError):
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
             pass
         
         logger.info("gpu_not_detected", note="No GPU found - will use CPU for processing")
@@ -262,18 +261,9 @@ class MRIProcessor:
         fastsurfer_dir = self.output_dir / "fastsurfer"
         fastsurfer_dir.mkdir(exist_ok=True)
         
-        # Smoke-test shortcut: skip Docker run but still generate mock output
-        if os.getenv("FASTSURFER_SMOKE_TEST") == "1":
-            logger.info(
-                "fastsurfer_smoke_test_mode",
-                note="Skipping Docker execution and generating mock output"
-            )
-            self._create_mock_fastsurfer_output(fastsurfer_dir)
-            return fastsurfer_dir
-        
         # Check if Docker is available and running
         try:
-            result = subprocess_module.run(
+            result = subprocess.run(
                 ["docker", "version"],
                 capture_output=True,
                 timeout=5
@@ -285,13 +275,13 @@ class MRIProcessor:
         except FileNotFoundError:
             logger.error("docker_not_installed")
             raise DockerNotAvailableError("not_installed")
-        except subprocess_module.TimeoutExpired:
+        except subprocess.TimeoutExpired:
             logger.error("docker_check_timeout")
             raise DockerNotAvailableError("not_running")
         
         # Check if FastSurfer image is downloaded
         try:
-            result = subprocess_module.run(
+            result = subprocess.run(
                 ["docker", "images", "-q", "deepmi/fastsurfer:latest"],
                 capture_output=True,
                 timeout=10
@@ -307,7 +297,7 @@ class MRIProcessor:
                 
                 # Pull the image
                 logger.info("pulling_fastsurfer_image")
-                pull_result = subprocess_module.run(
+                pull_result = subprocess.run(
                     ["docker", "pull", "deepmi/fastsurfer:latest"],
                     capture_output=True,
                     text=True,
@@ -322,7 +312,7 @@ class MRIProcessor:
                     )
                 
                 logger.info("fastsurfer_image_downloaded", message="FastSurfer model ready")
-        except subprocess_module.TimeoutExpired:
+        except subprocess.TimeoutExpired:
             raise RuntimeError(
                 "Downloading FastSurfer model timed out. "
                 "Please check your internet connection and try again."
@@ -347,38 +337,21 @@ class MRIProcessor:
             else:
                 num_threads = 1
             
-            # Get host paths for Docker mounting
-            # Desktop mode: Use direct host paths from settings (Windows/Mac/Linux)
-            # Server mode: Use Docker-in-Docker paths from environment or auto-detection
-            if settings.desktop_mode:
-                # Desktop mode: Direct host paths (no Docker-in-Docker)
-                host_upload_dir = str(Path(settings.upload_dir).resolve())
-                host_output_dir = str(Path(settings.output_dir).resolve())
-                logger.info(
-                    "desktop_mode_paths",
-                    input_path=host_upload_dir,
-                    output_path=f"{host_output_dir}/{self.job_id}/fastsurfer",
-                    note="Using direct host paths for desktop mode"
-                )
-            else:
-                # Server mode: Docker-in-Docker or environment variables
+            # Get host paths for Docker-in-Docker mounting
+            # When worker runs inside Docker and spawns FastSurfer Docker container,
+            # we need to mount HOST paths, not container paths
             host_upload_dir = os.getenv('HOST_UPLOAD_DIR')
             host_output_dir = os.getenv('HOST_OUTPUT_DIR')
             
-                # If not set, try to auto-detect from Docker inspect (Unix only)
+            # If not set, try to auto-detect from Docker inspect
             if not host_upload_dir or not host_output_dir:
                 try:
+                    import subprocess
                     import json
                     
-                        # Get hostname (cross-platform)
-                        if platform.system() == 'Windows':
-                            hostname = os.environ.get('COMPUTERNAME', 'localhost')
-                        else:
-                            hostname = os.uname().nodename
-                        
                     # Get our own container info
-                        result = subprocess_module.run(
-                            ['docker', 'inspect', hostname],
+                    result = subprocess.run(
+                        ['docker', 'inspect', os.uname().nodename],
                         capture_output=True,
                         text=True,
                         check=True
@@ -421,18 +394,18 @@ class MRIProcessor:
             
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
-            allow_root_flag = False
             
+            allow_root = False
             # Add GPU support if available
             if runtime_arg:
                 cmd.extend(runtime_arg.split())
             
-            # On Windows, FastSurfer image defaults to user "nonroot" which cannot access
-            # NTFS-mounted host paths. Override to root to ensure permissions.
+            # On Windows desktop mode, FastSurfer image defaults to user "nonroot"
+            # which cannot read NTFS-mounted paths. Override to root and allow root exec.
             if settings.desktop_mode and platform.system() == "Windows":
                 cmd.extend(["--user", "root"])
-                allow_root_flag = True
-            
+                allow_root = True
+
             # Add volume mounts with HOST paths
             cmd.extend([
                 "-v", f"{input_host_path}:/input:ro",
@@ -448,7 +421,7 @@ class MRIProcessor:
                 "--viewagg_device", "cpu",
             ])
 
-            if allow_root_flag:
+            if allow_root:
                 cmd.append("--allow_root")
             
             if device == "cpu":
@@ -465,7 +438,7 @@ class MRIProcessor:
                 note="Running FastSurfer with Docker"
             )
             
-            result = subprocess_module.run(
+            result = subprocess.run(
                 cmd,
                 check=True,
                 capture_output=True,
@@ -479,7 +452,7 @@ class MRIProcessor:
                 note="Brain segmentation complete"
             )
             
-        except subprocess_module.TimeoutExpired:
+        except subprocess.TimeoutExpired:
             logger.error("fastsurfer_timeout")
             logger.warning(
                 "using_mock_data",
@@ -487,7 +460,7 @@ class MRIProcessor:
             )
             self._create_mock_fastsurfer_output(fastsurfer_dir)
         
-        except subprocess_module.CalledProcessError as e:
+        except subprocess.CalledProcessError as e:
             # Docker command failed - check if it's a Docker daemon issue
             stderr_lower = (e.stderr or "").lower() if hasattr(e, 'stderr') else ""
             
@@ -624,55 +597,30 @@ class MRIProcessor:
         # Using Popen instead of run() to track PID and manage process group
         process = None
         try:
-            # Create a new process group so we can kill all child processes (Unix only)
-            is_windows = platform.system() == 'Windows'
-            
-            if is_windows:
-                # Windows: No process groups, use CREATE_NEW_PROCESS_GROUP
-                process = subprocess_module.Popen(
+            # Create a new process group so we can kill all child processes
+            process = subprocess.Popen(
                 cmd,
-                    stdout=subprocess_module.PIPE,
-                    stderr=subprocess_module.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                    creationflags=subprocess_module.CREATE_NEW_PROCESS_GROUP if hasattr(subprocess_module, 'CREATE_NEW_PROCESS_GROUP') else 0
-                )
-            else:
-                # Unix/Linux/Mac: Use process groups with setsid
-                process = subprocess_module.Popen(
-                    cmd,
-                    stdout=subprocess_module.PIPE,
-                    stderr=subprocess_module.PIPE,
-                    text=True,
-                    preexec_fn=os.setsid,  # Create new process group (Unix only)
+                preexec_fn=os.setsid,  # Create new process group
             )
             
             # Store the process PID for cleanup tracking
             self._store_process_pid(process.pid)
-            if is_windows:
-                logger.info("process_started", pid=process.pid, platform="Windows")
-            else:
-                logger.info("process_started", pid=process.pid, pgid=os.getpgid(process.pid), platform="Unix")
+            logger.info("process_started", pid=process.pid, pgid=os.getpgid(process.pid))
             
             # Wait for process with timeout
             try:
                 stdout, stderr = process.communicate(timeout=7200)
                 returncode = process.returncode
-            except subprocess_module.TimeoutExpired:
-                logger.warning("process_timeout_killing", pid=process.pid)
-                # Kill process (method depends on platform)
+            except subprocess.TimeoutExpired:
+                logger.warning("process_timeout_killing_group", pid=process.pid)
+                # Kill entire process group
                 try:
-                    if is_windows:
-                        # Windows: Terminate the process tree
-                        process.terminate()
-                        process.wait(timeout=10)
-                    else:
-                        # Unix: Kill entire process group
                     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                     process.wait(timeout=10)
                 except:
-                    if is_windows:
-                        process.kill()
-                    else:
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 raise
             finally:
@@ -691,13 +639,10 @@ class MRIProcessor:
             return fastsurfer_dir
             
         except Exception as e:
-            # Ensure cleanup of process on any error
+            # Ensure cleanup of process group on any error
             if process and process.poll() is None:
-                logger.warning("cleaning_up_process_on_error", pid=process.pid)
+                logger.warning("cleaning_up_process_group_on_error", pid=process.pid)
                 try:
-                    if platform.system() == 'Windows':
-                        process.kill()
-                    else:
                     os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 except:
                     pass

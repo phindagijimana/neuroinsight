@@ -59,7 +59,10 @@ def upload_scan(port: int, file_path: Path) -> str:
         resp = requests.post(f"{base_url}/upload/", files=files, timeout=60)
     resp.raise_for_status()
     payload = resp.json()
-    return payload["job_id"]
+    job_id = payload.get("job_id")
+    if not job_id:
+        raise RuntimeError(f"Upload succeeded but no job_id returned: {payload}")
+    return job_id
 
 
 def poll_job(port: int, job_id: str, timeout: int = 600) -> dict:

@@ -138,8 +138,9 @@ jobs:
           pyinstaller build.spec --clean --noconfirm
 
       - name: Install and start Colima
+        id: install_colima
         run: |
-          brew install qemu docker colima lima lima-guestagent
+          brew install qemu docker colima lima lima-additional-guestagents
           colima start --cpu 4 --memory 8 --disk 30 --arch x86_64
 
       - name: Prepare Docker (macOS)
@@ -160,7 +161,7 @@ jobs:
           2>&1 | tee nightly-macos.log
 
       - name: Stop Colima
-        if: always()
+        if: always() && steps.install_colima.outcome == 'success'
         run: |
           colima stop
 
