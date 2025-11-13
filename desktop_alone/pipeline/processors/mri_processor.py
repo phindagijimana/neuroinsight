@@ -7,7 +7,7 @@ from DICOM conversion through hippocampal asymmetry calculation.
 
 import json
 import platform
-import subprocess
+import subprocess as subprocess_module
 from pathlib import Path
 from typing import Dict, List
 from uuid import UUID
@@ -140,7 +140,7 @@ class MRIProcessor:
         """
         # Check if nvidia-smi exists and works
         try:
-            result = subprocess.run(
+            result = subprocess_module.run(
                 ["nvidia-smi"],
                 capture_output=True,
                 timeout=5,
@@ -150,7 +150,7 @@ class MRIProcessor:
                 logger.info("gpu_detected", note="NVIDIA GPU available for Singularity --nv flag")
                 return True
                 
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError):
+        except (subprocess_module.CalledProcessError, subprocess_module.TimeoutExpired, FileNotFoundError):
             pass
         
         logger.info("gpu_not_detected", note="No GPU found - will use CPU for processing")
@@ -263,7 +263,7 @@ class MRIProcessor:
         
         # Check if Docker is available and running
         try:
-            result = subprocess.run(
+            result = subprocess_module.run(
                 ["docker", "version"],
                 capture_output=True,
                 timeout=5
@@ -275,13 +275,13 @@ class MRIProcessor:
         except FileNotFoundError:
             logger.error("docker_not_installed")
             raise DockerNotAvailableError("not_installed")
-        except subprocess.TimeoutExpired:
+        except subprocess_module.TimeoutExpired:
             logger.error("docker_check_timeout")
             raise DockerNotAvailableError("not_running")
         
         # Check if FastSurfer image is downloaded
         try:
-            result = subprocess.run(
+            result = subprocess_module.run(
                 ["docker", "images", "-q", "deepmi/fastsurfer:latest"],
                 capture_output=True,
                 timeout=10
@@ -297,7 +297,7 @@ class MRIProcessor:
                 
                 # Pull the image
                 logger.info("pulling_fastsurfer_image")
-                pull_result = subprocess.run(
+                pull_result = subprocess_module.run(
                     ["docker", "pull", "deepmi/fastsurfer:latest"],
                     capture_output=True,
                     text=True,
@@ -312,7 +312,7 @@ class MRIProcessor:
                     )
                 
                 logger.info("fastsurfer_image_downloaded", message="FastSurfer model ready")
-        except subprocess.TimeoutExpired:
+        except subprocess_module.TimeoutExpired:
             raise RuntimeError(
                 "Downloading FastSurfer model timed out. "
                 "Please check your internet connection and try again."
@@ -346,11 +346,10 @@ class MRIProcessor:
             # If not set, try to auto-detect from Docker inspect
             if not host_upload_dir or not host_output_dir:
                 try:
-                    import subprocess
                     import json
                     
                     # Get our own container info
-                    result = subprocess.run(
+                    result = subprocess_module.run(
                         ['docker', 'inspect', os.uname().nodename],
                         capture_output=True,
                         text=True,
@@ -438,7 +437,7 @@ class MRIProcessor:
                 note="Running FastSurfer with Docker"
             )
             
-            result = subprocess.run(
+            result = subprocess_module.run(
                 cmd,
                 check=True,
                 capture_output=True,
@@ -452,7 +451,7 @@ class MRIProcessor:
                 note="Brain segmentation complete"
             )
             
-        except subprocess.TimeoutExpired:
+        except subprocess_module.TimeoutExpired:
             logger.error("fastsurfer_timeout")
             logger.warning(
                 "using_mock_data",
@@ -460,7 +459,7 @@ class MRIProcessor:
             )
             self._create_mock_fastsurfer_output(fastsurfer_dir)
         
-        except subprocess.CalledProcessError as e:
+        except subprocess_module.CalledProcessError as e:
             # Docker command failed - check if it's a Docker daemon issue
             stderr_lower = (e.stderr or "").lower() if hasattr(e, 'stderr') else ""
             
@@ -598,10 +597,10 @@ class MRIProcessor:
         process = None
         try:
             # Create a new process group so we can kill all child processes
-            process = subprocess.Popen(
+            process = subprocess_module.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess_module.PIPE,
+                stderr=subprocess_module.PIPE,
                 text=True,
                 preexec_fn=os.setsid,  # Create new process group
             )
@@ -614,7 +613,7 @@ class MRIProcessor:
             try:
                 stdout, stderr = process.communicate(timeout=7200)
                 returncode = process.returncode
-            except subprocess.TimeoutExpired:
+            except subprocess_module.TimeoutExpired:
                 logger.warning("process_timeout_killing_group", pid=process.pid)
                 # Kill entire process group
                 try:
