@@ -1,25 +1,21 @@
 #!/usr/bin/env python3
 """
-Cross-platform smoke test for NeuroInsight desktop backend.
+Cross-platform smoke test for the NeuroInsight desktop backend.
 
 Steps:
-1. Create a synthetic NIfTI T1 file (simple gradient volume) suitable for upload.
-2. Launch the PyInstaller-built backend executable in desktop mode with a fixed port.
-3. Wait for /health endpoint to respond.
-4. Upload the synthetic scan, poll job status until completion, and verify metrics.json exists.
+1. Create (or copy) a NIfTI T1 file suitable for upload.
+2. Launch the PyInstaller-built backend executable in desktop mode.
+3. Wait for /health to respond.
+4. Upload the scan, poll until completion, verify metrics.json exists.
 5. Shut down the backend gracefully.
-
-Environment prerequisites:
-- Python dependencies from desktop requirements (nibabel, numpy, requests).
-- Requests is used for HTTP interactions.
 """
 
 import argparse
 import os
+import shutil
 import signal
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -29,10 +25,9 @@ import requests
 
 
 def create_sample_t1(path: Path) -> None:
-    """Create a small synthetic NIfTI T1-weighted volume."""
+    """Create a synthetic NIfTI T1-weighted volume."""
     path.parent.mkdir(parents=True, exist_ok=True)
     data = np.zeros((48, 48, 48), dtype=np.float32)
-    # Simple gradient to resemble anatomical variation
     z_indices = np.linspace(0, 1, data.shape[2], dtype=np.float32)
     for z, val in enumerate(z_indices):
         data[:, :, z] = val
@@ -42,7 +37,7 @@ def create_sample_t1(path: Path) -> None:
 
 
 def wait_for_health(port: int, timeout: int = 120) -> None:
-    """Wait until /health endpoint responds with 200."""
+    """Wait until /health endpoint responds with 200 within timeout."""
     base_url = f"http://127.0.0.1:{port}"
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -68,7 +63,7 @@ def upload_scan(port: int, file_path: Path) -> str:
 
 
 def poll_job(port: int, job_id: str, timeout: int = 600) -> dict:
-    """Poll jobs endpoint until completion or timeout."""
+    """Poll job endpoint until completion or timeout."""
     base_url = f"http://127.0.0.1:{port}"
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -83,7 +78,7 @@ def poll_job(port: int, job_id: str, timeout: int = 600) -> dict:
 
 
 def ensure_metrics(output_dir: Path, job_id: str) -> None:
-    """Verify metrics.json exists."""
+    """Verify metrics.json exists for completed job."""
     metrics_path = output_dir / job_id / "metrics.json"
     if not metrics_path.exists():
         raise RuntimeError(f"metrics.json not found at {metrics_path}")
@@ -95,6 +90,16 @@ def main() -> None:
     parser.add_argument("--api-port", type=int, default=8765, help="API port to bind")
     parser.add_argument("--workspace", default="smoke_workdir", help="Working directory base")
     parser.add_argument("--timeout", type=int, default=600, help="Overall timeout seconds")
+    parser.add_argument(
+        "--fastsurfer-mode",
+        choices=("smoke", "real"),
+        default="smoke",
+        help="Select FastSurfer execution mode. 'smoke' uses mock outputs, 'real' runs the container.",
+    )
+    parser.add_argument(
+        "--input-nii",
+        help="Optional path to an existing NIfTI file to upload instead of generating a synthetic volume.",
+    )
     args = parser.parse_args()
 
     backend_path = Path(args.backend_exe).resolve()
@@ -109,12 +114,22 @@ def main() -> None:
     for directory in [workspace, docs_dir, home_dir, upload_dir, output_dir]:
         directory.mkdir(parents=True, exist_ok=True)
 
-    sample_path = upload_dir / "smoke_patient_T1w.nii.gz"
-    create_sample_t1(sample_path)
+    if args.input_nii:
+        source_path = Path(args.input_nii).resolve()
+        if not source_path.exists():
+            raise FileNotFoundError(f"Input NIfTI file not found: {source_path}")
+        sample_path = upload_dir / source_path.name
+        shutil.copy(source_path, sample_path)
+    else:
+        sample_path = upload_dir / "smoke_patient_T1w.nii.gz"
+        create_sample_t1(sample_path)
 
     env = os.environ.copy()
     env["DESKTOP_MODE"] = "1"
-    env["FASTSURFER_SMOKE_TEST"] = "1"
+    if args.fastsurfer_mode == "smoke":
+        env["FASTSURFER_SMOKE_TEST"] = "1"
+    else:
+        env.pop("FASTSURFER_SMOKE_TEST", None)
     env["PORT"] = str(args.api_port)
     env["API_PORT"] = str(args.api_port)
     env["HOST"] = "127.0.0.1"
@@ -123,7 +138,6 @@ def main() -> None:
     env["HOME"] = str(home_dir)
     env["USERPROFILE"] = str(home_dir)  # Windows compatibility
 
-    # Ensure Documents path resolves under our workspace for platformdirs
     if sys.platform == "darwin":
         env.setdefault("XDG_DOCUMENTS_DIR", str(docs_dir))
 

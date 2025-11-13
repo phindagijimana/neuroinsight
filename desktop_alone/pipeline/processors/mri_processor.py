@@ -362,56 +362,56 @@ class MRIProcessor:
                 )
             else:
                 # Server mode: Docker-in-Docker or environment variables
-                host_upload_dir = os.getenv('HOST_UPLOAD_DIR')
-                host_output_dir = os.getenv('HOST_OUTPUT_DIR')
-                
+            host_upload_dir = os.getenv('HOST_UPLOAD_DIR')
+            host_output_dir = os.getenv('HOST_OUTPUT_DIR')
+            
                 # If not set, try to auto-detect from Docker inspect (Unix only)
-                if not host_upload_dir or not host_output_dir:
-                    try:
-                        import json
-                        
+            if not host_upload_dir or not host_output_dir:
+                try:
+                    import json
+                    
                         # Get hostname (cross-platform)
                         if platform.system() == 'Windows':
                             hostname = os.environ.get('COMPUTERNAME', 'localhost')
                         else:
                             hostname = os.uname().nodename
                         
-                        # Get our own container info
+                    # Get our own container info
                         result = subprocess_module.run(
                             ['docker', 'inspect', hostname],
-                            capture_output=True,
-                            text=True,
-                            check=True
-                        )
-                        container_info = json.loads(result.stdout)[0]
-                        
-                        # Extract mount sources from our container
-                        for mount in container_info.get('Mounts', []):
-                            dest = mount.get('Destination', '')
-                            if dest == '/data/uploads' and not host_upload_dir:
-                                host_upload_dir = mount.get('Source')
-                            elif dest == '/data/outputs' and not host_output_dir:
-                                host_output_dir = mount.get('Source')
-                        
-                        logger.info(
-                            "auto_detected_host_paths",
-                            upload_dir=host_upload_dir,
-                            output_dir=host_output_dir
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "host_path_detection_failed",
-                            error=str(e),
-                            note="Falling back to container paths (may fail)"
-                        )
-                        host_upload_dir = host_upload_dir or '/data/uploads'
-                        host_output_dir = host_output_dir or '/data/outputs'
-                else:
+                        capture_output=True,
+                        text=True,
+                        check=True
+                    )
+                    container_info = json.loads(result.stdout)[0]
+                    
+                    # Extract mount sources from our container
+                    for mount in container_info.get('Mounts', []):
+                        dest = mount.get('Destination', '')
+                        if dest == '/data/uploads' and not host_upload_dir:
+                            host_upload_dir = mount.get('Source')
+                        elif dest == '/data/outputs' and not host_output_dir:
+                            host_output_dir = mount.get('Source')
+                    
                     logger.info(
-                        "using_configured_host_paths",
+                        "auto_detected_host_paths",
                         upload_dir=host_upload_dir,
                         output_dir=host_output_dir
                     )
+                except Exception as e:
+                    logger.warning(
+                        "host_path_detection_failed",
+                        error=str(e),
+                        note="Falling back to container paths (may fail)"
+                    )
+                    host_upload_dir = host_upload_dir or '/data/uploads'
+                    host_output_dir = host_output_dir or '/data/outputs'
+            else:
+                logger.info(
+                    "using_configured_host_paths",
+                    upload_dir=host_upload_dir,
+                    output_dir=host_output_dir
+                )
             
             # Calculate relative paths from host perspective
             # nifti_path is like /data/uploads/file.nii (inside worker container)
@@ -421,6 +421,7 @@ class MRIProcessor:
             
             # Build Docker command
             cmd = ["docker", "run", "--rm"]
+            allow_root_flag = False
             
             # Add GPU support if available
             if runtime_arg:
@@ -430,6 +431,7 @@ class MRIProcessor:
             # NTFS-mounted host paths. Override to root to ensure permissions.
             if settings.desktop_mode and platform.system() == "Windows":
                 cmd.extend(["--user", "root"])
+                allow_root_flag = True
             
             # Add volume mounts with HOST paths
             cmd.extend([
@@ -445,6 +447,9 @@ class MRIProcessor:
                 "--threads", str(num_threads),
                 "--viewagg_device", "cpu",
             ])
+
+            if allow_root_flag:
+                cmd.append("--allow_root")
             
             if device == "cpu":
                 logger.info(
@@ -625,10 +630,10 @@ class MRIProcessor:
             if is_windows:
                 # Windows: No process groups, use CREATE_NEW_PROCESS_GROUP
                 process = subprocess_module.Popen(
-                    cmd,
+                cmd,
                     stdout=subprocess_module.PIPE,
                     stderr=subprocess_module.PIPE,
-                    text=True,
+                text=True,
                     creationflags=subprocess_module.CREATE_NEW_PROCESS_GROUP if hasattr(subprocess_module, 'CREATE_NEW_PROCESS_GROUP') else 0
                 )
             else:
@@ -639,7 +644,7 @@ class MRIProcessor:
                     stderr=subprocess_module.PIPE,
                     text=True,
                     preexec_fn=os.setsid,  # Create new process group (Unix only)
-                )
+            )
             
             # Store the process PID for cleanup tracking
             self._store_process_pid(process.pid)
@@ -662,13 +667,13 @@ class MRIProcessor:
                         process.wait(timeout=10)
                     else:
                         # Unix: Kill entire process group
-                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
-                        process.wait(timeout=10)
+                    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                    process.wait(timeout=10)
                 except:
                     if is_windows:
                         process.kill()
                     else:
-                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 raise
             finally:
                 self._clear_process_pid()
@@ -693,7 +698,7 @@ class MRIProcessor:
                     if platform.system() == 'Windows':
                         process.kill()
                     else:
-                        os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 except:
                     pass
             self._clear_process_pid()
