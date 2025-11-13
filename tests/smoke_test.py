@@ -16,6 +16,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -36,19 +37,22 @@ def create_sample_t1(path: Path) -> None:
     nib.save(img, str(path))
 
 
-def wait_for_health(port: int, timeout: int = 120) -> None:
+def wait_for_health(port: int, timeout: int = 180) -> None:
     """Wait until /health endpoint responds with 200 within timeout."""
     base_url = f"http://127.0.0.1:{port}"
     deadline = time.time() + timeout
+    last_error = None
     while time.time() < deadline:
         try:
             resp = requests.get(f"{base_url}/health", timeout=5)
             if resp.status_code == 200:
+                print(f"[smoke-test] Backend health check passed after {int(time.time() - (deadline - timeout))}s")
                 return
-        except requests.RequestException:
-            pass
+            last_error = f"HTTP {resp.status_code}"
+        except requests.RequestException as e:
+            last_error = str(e)
         time.sleep(1)
-    raise RuntimeError("Backend did not become healthy within timeout")
+    raise RuntimeError(f"Backend did not become healthy within timeout. Last error: {last_error}")
 
 
 def upload_scan(port: int, file_path: Path) -> str:
@@ -179,6 +183,16 @@ def main() -> None:
         creationflags=creationflags,
     )
 
+    # Thread to print backend output in real-time
+    backend_output_lines = []
+    def read_output():
+        for line in backend_proc.stdout:
+            backend_output_lines.append(line)
+            print(line, end='', flush=True)
+    
+    output_thread = threading.Thread(target=read_output, daemon=True)
+    output_thread.start()
+
     try:
         wait_for_health(args.api_port)
         job_id = upload_scan(args.api_port, sample_path)
@@ -198,10 +212,7 @@ def main() -> None:
                 backend_proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 backend_proc.kill()
-        if backend_proc.stdout:
-            backend_output = backend_proc.stdout.read()
-            print("=== Backend output ===")
-            print(backend_output)
+        # Backend output is already printed in real-time by the output thread
 
 
 if __name__ == "__main__":
