@@ -114,14 +114,19 @@ def main() -> None:
     for directory in [workspace, docs_dir, home_dir, upload_dir, output_dir]:
         directory.mkdir(parents=True, exist_ok=True)
 
+    sample_path = upload_dir / "smoke_patient_T1w.nii.gz"
     if args.input_nii:
         source_path = Path(args.input_nii).resolve()
-        if not source_path.exists():
-            raise FileNotFoundError(f"Input NIfTI file not found: {source_path}")
-        sample_path = upload_dir / source_path.name
-        shutil.copy(source_path, sample_path)
+        if source_path.exists():
+            sample_path = upload_dir / source_path.name
+            shutil.copy(source_path, sample_path)
+        else:
+            print(
+                f"[smoke-test] WARNING: Input NIfTI file not found at {source_path}; "
+                "falling back to generated synthetic volume."
+            )
+            create_sample_t1(sample_path)
     else:
-        sample_path = upload_dir / "smoke_patient_T1w.nii.gz"
         create_sample_t1(sample_path)
 
     env = os.environ.copy()

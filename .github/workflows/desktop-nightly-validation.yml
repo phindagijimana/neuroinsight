@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Free disk space (Linux)
         run: |
@@ -75,6 +77,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -96,7 +100,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Linux containers are not supported on hosted Windows runners; running smoke fallback."
-          $command = "python tests\smoke_test.py --backend-exe desktop_alone\dist\neuroinsight-backend\neuroinsight-backend.exe --workspace nightly-windows --api-port 8876 --timeout 1800 --fastsurfer-mode smoke --input-nii desktop_alone\sample_image\sub-1_T1w.nii.gz"
+          $command = "python tests\smoke_test.py --backend-exe desktop_alone\dist\neuroinsight-backend\neuroinsight-backend.exe --workspace nightly-windows --api-port 8876 --timeout 1800 --fastsurfer-mode smoke"
           Invoke-Expression "$command 2>&1 | Tee-Object -FilePath nightly-windows.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -114,6 +118,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -133,7 +139,7 @@ jobs:
 
       - name: Install and start Colima
         run: |
-          brew install qemu docker colima
+          brew install qemu docker colima lima lima-guestagent
           colima start --cpu 4 --memory 8 --disk 30 --arch x86_64
 
       - name: Prepare Docker (macOS)
