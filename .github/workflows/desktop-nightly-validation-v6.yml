@@ -188,9 +188,10 @@ jobs:
           set -euo pipefail
           brew install qemu docker colima lima lima-additional-guestagents
           colima start --cpu 4 --memory 8 --disk 30 --arch x86_64
-          if colima env --help >/dev/null 2>&1; then
-            colima env --shell bash >> "$GITHUB_ENV"
+          if colima env --shell bash >> "$GITHUB_ENV" 2>/dev/null; then
+            echo "Configured Colima Docker context via 'colima env'"
           else
+            echo "'colima env' unavailable, falling back to 'colima docker-env'"
             colima docker-env --shell bash >> "$GITHUB_ENV"
           fi
           docker context use colima
