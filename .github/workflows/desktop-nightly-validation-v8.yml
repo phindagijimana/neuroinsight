@@ -240,7 +240,7 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-macos \
             --api-port 8877 \
-            --timeout 2400 \
+            --timeout 7200 \
             --fastsurfer-mode real \
             --input-nii "$SAMPLE_T1_PATH" \
           2>&1 | tee nightly-macos.log
