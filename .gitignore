@@ -230,6 +230,7 @@ backend/alembic/versions/*.pyc
 # MRI files are large - consider Git LFS
 *.nii
 *.nii.gz
+!desktop_alone/sample_image/*.nii.gz
 *.mgz
 *.dcm
 *.dicom
