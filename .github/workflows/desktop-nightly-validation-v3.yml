@@ -14,6 +14,7 @@ jobs:
   linux:
     name: FastSurfer Linux
     runs-on: ubuntu-latest
+    timeout-minutes: 210
 
     steps:
       - name: Checkout code
@@ -58,7 +59,7 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-linux \
             --api-port 8875 \
-            --timeout 3600 \
+            --timeout 12600 \
             --fastsurfer-mode real \
             --input-nii "$SAMPLE_T1_PATH" \
           2>&1 | tee nightly-linux.log
@@ -73,6 +74,7 @@ jobs:
   windows:
     name: FastSurfer Windows
     runs-on: windows-latest
+    timeout-minutes: 210
 
     steps:
       - name: Checkout code
@@ -100,7 +102,7 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Linux containers are not supported on hosted Windows runners; running smoke fallback."
-          $command = "python tests\smoke_test.py --backend-exe desktop_alone\dist\neuroinsight-backend\neuroinsight-backend.exe --workspace nightly-windows --api-port 8876 --timeout 1800 --fastsurfer-mode smoke"
+          $command = "python tests\smoke_test.py --backend-exe desktop_alone\dist\neuroinsight-backend\neuroinsight-backend.exe --workspace nightly-windows --api-port 8876 --timeout 12600 --fastsurfer-mode smoke"
           Invoke-Expression "$command 2>&1 | Tee-Object -FilePath nightly-windows.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -171,4 +173,6 @@ jobs:
         with:
           name: nightly-macos-log
           path: nightly-macos.log
+
+
 

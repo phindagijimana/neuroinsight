@@ -37,21 +37,29 @@ def create_sample_t1(path: Path) -> None:
     nib.save(img, str(path))
 
 
-def wait_for_health(port: int, timeout: int = 600) -> None:
+def wait_for_health(
+    port: int,
+    timeout: int = 600,
+    initial_delay: float = 2.0,
+    poll_interval: float = 1.0,
+) -> None:
     """Wait until /health endpoint responds with 200 within timeout."""
     base_url = f"http://127.0.0.1:{port}"
     deadline = time.time() + timeout
     last_error = None
+    if initial_delay > 0:
+        time.sleep(initial_delay)
     while time.time() < deadline:
         try:
             resp = requests.get(f"{base_url}/health", timeout=5)
             if resp.status_code == 200:
-                print(f"[smoke-test] Backend health check passed after {int(time.time() - (deadline - timeout))}s")
+                elapsed = int(time.time() - (deadline - timeout))
+                print(f"[smoke-test] Backend health check passed after {elapsed}s")
                 return
             last_error = f"HTTP {resp.status_code}"
         except requests.RequestException as e:
             last_error = str(e)
-        time.sleep(1)
+        time.sleep(poll_interval)
     raise RuntimeError(f"Backend did not become healthy within timeout. Last error: {last_error}")
 
 
@@ -107,6 +115,18 @@ def main() -> None:
     parser.add_argument("--api-port", type=int, default=8765, help="API port to bind")
     parser.add_argument("--workspace", default="smoke_workdir", help="Working directory base")
     parser.add_argument("--timeout", type=int, default=600, help="Overall timeout seconds")
+    parser.add_argument(
+        "--health-timeout",
+        type=int,
+        default=600,
+        help="Seconds to wait for backend /health to respond before failing.",
+    )
+    parser.add_argument(
+        "--health-initial-delay",
+        type=float,
+        default=2.0,
+        help="Seconds to sleep before starting health polling (gives backend time to boot).",
+    )
     parser.add_argument(
         "--fastsurfer-mode",
         choices=("smoke", "real"),
@@ -194,7 +214,11 @@ def main() -> None:
     output_thread.start()
 
     try:
-        wait_for_health(args.api_port)
+        wait_for_health(
+            args.api_port,
+            timeout=args.health_timeout,
+            initial_delay=args.health_initial_delay,
+        )
         job_id = upload_scan(args.api_port, sample_path)
         job_info = poll_job(args.api_port, job_id, timeout=args.timeout)
         status = job_info.get("status")
