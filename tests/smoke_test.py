@@ -69,6 +69,16 @@ def upload_scan(port: int, file_path: Path) -> str:
     with file_path.open("rb") as fh:
         files = {"file": (file_path.name, fh, "application/octet-stream")}
         resp = requests.post(f"{base_url}/upload/", files=files, timeout=60)
+    if resp.status_code >= 400:
+        try:
+            error_payload = resp.json()
+        except ValueError:
+            error_payload = resp.text
+        print(
+            f"[smoke-test] ERROR: upload failed ({resp.status_code}) "
+            f"{error_payload}",
+            flush=True,
+        )
     resp.raise_for_status()
     payload = resp.json()
     job_id = payload.get("job_id") or payload.get("id")
