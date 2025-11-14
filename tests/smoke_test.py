@@ -8,6 +8,12 @@ Steps:
 3. Wait for /health to respond.
 4. Upload the scan, poll until completion, verify metrics.json exists.
 5. Shut down the backend gracefully.
+
+Features:
+- Timeout detection (30-60 minutes max for processing)
+- Docker health checks during processing
+- Early failure detection for hung processes
+- Progress monitoring with reasonable expectations
 """
 
 import argparse
@@ -19,6 +25,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Optional, Dict, Any
 
 import nibabel as nib
 import numpy as np
@@ -87,11 +94,66 @@ def upload_scan(port: int, file_path: Path) -> str:
     return str(job_id)
 
 
-def poll_job(port: int, job_id: str, timeout: int = 600) -> dict:
-    """Poll job endpoint until completion or timeout."""
+def check_docker_health() -> bool:
+    """Check if Docker daemon is responsive and containers are healthy."""
+    try:
+        # Check if Docker daemon is running
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode != 0:
+            print("[smoke-test] WARNING: Docker daemon not responsive")
+            return False
+
+        # Check for running containers (should be FastSurfer)
+        result = subprocess.run(
+            ["docker", "ps", "--filter", "ancestor=deepmi/fastsurfer:latest", "--format", "{{.Status}}"],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        if result.returncode == 0 and result.stdout.strip():
+            # Check if container status indicates it's running (not exited)
+            status_lines = result.stdout.strip().split('\n')
+            for status in status_lines:
+                if 'Up' in status or 'running' in status.lower():
+                    return True
+            print(f"[smoke-test] WARNING: FastSurfer container found but not running: {result.stdout.strip()}")
+            return False
+
+        return True  # No containers found, which is OK (might not have started yet)
+
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError) as e:
+        print(f"[smoke-test] WARNING: Docker health check failed: {e}")
+        return False
+
+
+def poll_job(port: int, job_id: str, timeout: int = 3600) -> dict:
+    """
+    Poll job endpoint until completion or timeout with intelligent monitoring.
+
+    Features:
+    - Maximum timeout of 1 hour (3600 seconds) for real processing
+    - Progress monitoring to detect hung processes
+    - Docker health checks during processing
+    - Early failure detection
+    """
     base_url = f"http://127.0.0.1:{port}"
-    deadline = time.time() + timeout
+    deadline = time.time() + min(timeout, 3600)  # Cap at 1 hour max
+    start_time = time.time()
+    last_progress = None
+    last_progress_time = start_time
+    stalled_threshold = 600  # 10 minutes without progress = hung
+
+    print(f"[smoke-test] Starting job monitoring with {min(timeout, 3600)}s timeout")
+
     while time.time() < deadline:
+        elapsed = time.time() - start_time
+
         try:
             resp = requests.get(f"{base_url}/jobs/{job_id}", timeout=20)
             resp.raise_for_status()
@@ -106,10 +168,35 @@ def poll_job(port: int, job_id: str, timeout: int = 600) -> dict:
             continue
 
         status = payload.get("status")
+        progress = payload.get("progress", 0)
+        current_step = payload.get("current_step", "")
+
+        # Progress monitoring to detect hung processes
+        if progress != last_progress:
+            last_progress = progress
+            last_progress_time = time.time()
+            print(f"[smoke-test] Progress: {progress}% - {current_step}")
+        elif time.time() - last_progress_time > stalled_threshold:
+            # No progress for 10 minutes - likely hung
+            raise RuntimeError(
+                f"Job appears hung: no progress for {stalled_threshold}s "
+                f"(stuck at {progress}% - {current_step})"
+            )
+
+        # Check Docker health during active processing
+        if elapsed > 60 and status == "RUNNING":  # After 1 minute, during processing
+            if not check_docker_health():
+                print("[smoke-test] WARNING: Docker health check failed during processing")
+
         if status in {"COMPLETED", "FAILED"}:
+            total_time = time.time() - start_time
+            print(f"[smoke-test] Job finished in {total_time:.1f}s with status: {status}")
             return payload
+
         time.sleep(3)
-    raise RuntimeError("Job did not finish within timeout")
+
+    total_time = time.time() - start_time
+    raise RuntimeError(f"Job did not finish within {min(timeout, 3600)}s timeout (ran for {total_time:.1f}s)")
 
 
 def ensure_metrics(output_dir: Path, job_id: str) -> None:
@@ -124,7 +211,12 @@ def main() -> None:
     parser.add_argument("--backend-exe", required=True, help="Path to backend executable")
     parser.add_argument("--api-port", type=int, default=8765, help="API port to bind")
     parser.add_argument("--workspace", default="smoke_workdir", help="Working directory base")
-    parser.add_argument("--timeout", type=int, default=600, help="Overall timeout seconds")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=2400,  # 40 minutes default (reasonable for real processing)
+        help="Overall timeout seconds (max 3600s/1hr for real processing).",
+    )
     parser.add_argument(
         "--health-timeout",
         type=int,
@@ -146,6 +238,12 @@ def main() -> None:
     parser.add_argument(
         "--input-nii",
         help="Optional path to an existing NIfTI file to upload instead of generating a synthetic volume.",
+    )
+    parser.add_argument(
+        "--max-processing-time",
+        type=int,
+        default=3600,  # 1 hour max for real processing
+        help="Maximum time allowed for actual processing (after upload).",
     )
     args = parser.parse_args()
 
@@ -224,18 +322,41 @@ def main() -> None:
     output_thread.start()
 
     try:
+        print(f"[smoke-test] Starting smoke test with timeout: {args.timeout}s, max processing: {args.max_processing_time}s")
+        print(f"[smoke-test] FastSurfer mode: {args.fastsurfer_mode}")
+        print(f"[smoke-test] Test image: {sample_path}")
+
         wait_for_health(
             args.api_port,
             timeout=args.health_timeout,
             initial_delay=args.health_initial_delay,
         )
+
         job_id = upload_scan(args.api_port, sample_path)
-        job_info = poll_job(args.api_port, job_id, timeout=args.timeout)
+
+        # Use more restrictive timeout for real processing
+        processing_timeout = min(args.max_processing_time, 3600)  # Cap at 1 hour
+        if args.fastsurfer_mode == "real":
+            processing_timeout = min(processing_timeout, 2400)  # 40 minutes for real mode
+
+        print(f"[smoke-test] Using processing timeout: {processing_timeout}s")
+
+        job_info = poll_job(args.api_port, job_id, timeout=processing_timeout)
         status = job_info.get("status")
-        if status != "COMPLETED":
+
+        if status == "COMPLETED":
+            ensure_metrics(output_dir, job_id)
+            print(f"[smoke-test] ✅ SUCCESS: Job {job_id} completed successfully")
+            return  # Success!
+        elif status == "FAILED":
+            error_msg = job_info.get("error_message", "Unknown error")
+            raise RuntimeError(f"Job failed with error: {error_msg}")
+        else:
             raise RuntimeError(f"Job finished with unexpected status: {status}")
-        ensure_metrics(output_dir, job_id)
-        print(f"Smoke test passed: job {job_id} completed.")
+
+    except Exception as e:
+        print(f"[smoke-test] ❌ FAILED: {e}", file=sys.stderr)
+        raise  # Re-raise to ensure non-zero exit code
     finally:
         if backend_proc.poll() is None:
             if os.name == "nt":

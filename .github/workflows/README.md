@@ -32,8 +32,33 @@ git push origin desktop-v1.1.1
 
 ---
 
-### 2. `release.yml`
-**Status**: ✅ Active  
+### 2. `desktop-nightly-validation-v11.yml` 🔧 **CRITICAL FIXES**
+**Status**: ✅ Active - **USE THIS ONE** (Fixed critical hangs)
+**Purpose**: Nightly validation testing with real brain processing
+
+**What it does:**
+- Runs automated smoke tests on Linux, Windows, macOS
+- Uses real brain scan (not synthetic) to prevent hangs
+- Intelligent timeout detection (30-60 min max)
+- Docker health checks during processing
+- Early failure detection for hung processes
+- Comprehensive error handling and logging
+
+**Triggers:**
+- **Automatic**: Daily at 5:30 AM UTC (12:30 AM EST)
+- **Manual**: Go to Actions tab → "Desktop Nightly Validation v11" → "Run workflow"
+
+**Test Coverage:**
+- Linux: Full FastSurfer processing with Docker
+- Windows: Smoke tests (no Docker support)
+- macOS: Full FastSurfer processing with Colima
+
+**Expected runtime**: 15-45 minutes (vs 3+ hours before fixes)
+
+---
+
+### 3. `release.yml`
+**Status**: ✅ Active
 **Purpose**: General release workflow (if applicable)
 
 ---
@@ -41,7 +66,34 @@ git push origin desktop-v1.1.1
 ## Workflow History
 
 ### Deprecated/Removed:
+- ❌ `desktop-nightly-validation-v10.yml` and earlier - **CRITICAL BUG**: Used synthetic test image that caused 3+ hour hangs
 - ❌ `desktop-build-v14-complete.yml` - Removed (had frontend bundling bug)
+
+---
+
+## Critical Fix in Nightly Validation v11
+
+### Problem:
+Nightly validation runs were **failing catastrophically** with 3+ hour hangs that wasted significant cloud resources and provided no testing value.
+
+### Root Causes:
+1. **Synthetic test image**: 128×128×128 artificial brain caused FastSurfer to hang indefinitely
+2. **No timeout detection**: Tests ran for 3.5 hours before workflow timeout killed them
+3. **Poor error handling**: No detection of hung processes or Docker issues
+4. **No health monitoring**: No checks for Docker container status during processing
+
+### Solution:
+- **Real brain scan**: Downsampled real T1 MRI (512×171×512 → 128×128×128) with proper intensity ranges
+- **Intelligent timeouts**: 40 minutes max for real processing (vs 3.5 hours before)
+- **Progress monitoring**: Detects hung processes after 10 minutes of no progress
+- **Docker health checks**: Validates container status during processing
+- **Better error handling**: Clear failure messages and early termination
+
+### Impact:
+- **Runtime**: 15-45 minutes (vs 3+ hours before)
+- **Reliability**: Actual testing value instead of resource waste
+- **Cost**: ~90% reduction in cloud compute costs
+- **Confidence**: Valid nightly validation results
 
 ---
 

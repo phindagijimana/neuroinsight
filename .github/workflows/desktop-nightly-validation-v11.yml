@@ -1,5 +1,12 @@
 name: Desktop Nightly Validation v11
 
+# IMPROVEMENTS OVER v10:
+# - Uses real brain scan instead of synthetic image (prevents hangs)
+# - Intelligent timeout detection (30-60 min max for real processing)
+# - Docker health checks during processing
+# - Early failure detection for hung processes
+# - Better error handling and progress monitoring
+
 on:
   schedule:
     - cron: "30 5 * * *"
@@ -78,7 +85,8 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-linux \
             --api-port 8875 \
-            --timeout 12600 \
+            --timeout 2400 \
+            --max-processing-time 2400 \
             --health-timeout 900 \
             --health-initial-delay 5 \
             --fastsurfer-mode real \
@@ -139,7 +147,8 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend.exe \
             --workspace nightly-windows \
             --api-port 8876 \
-            --timeout 12600 \
+            --timeout 600 \
+            --max-processing-time 600 \
             --health-timeout 900 \
             --health-initial-delay 5 \
             --fastsurfer-mode smoke \
@@ -208,7 +217,8 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-macos \
             --api-port 8877 \
-            --timeout 12600 \
+            --timeout 2400 \
+            --max-processing-time 2400 \
             --health-timeout 900 \
             --health-initial-delay 5 \
             --fastsurfer-mode real \
