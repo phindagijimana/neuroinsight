@@ -142,35 +142,12 @@ function startBackend() {
 }
 
 /**
- * Stop the backend process (cross-platform)
+ * Stop the backend process
  */
 function stopBackend() {
   if (backendProcess) {
     log.info('Stopping backend...');
-    
-    // Cross-platform process termination
-    // Windows: kill() without signal works fine
-    // Unix/Mac: SIGTERM is supported
-    try {
-      if (process.platform === 'win32') {
-        // Windows: Use kill() without signal (defaults to termination)
-        backendProcess.kill();
-      } else {
-        // Unix/Mac: Use SIGTERM for graceful shutdown
-        backendProcess.kill('SIGTERM');
-      }
-      
-      log.info('Backend stop signal sent');
-    } catch (error) {
-      log.error('Error stopping backend:', error);
-      // Force kill if graceful termination failed
-      try {
-        backendProcess.kill('SIGKILL');
-      } catch (forceError) {
-        log.error('Force kill also failed:', forceError);
-      }
-    }
-    
+    backendProcess.kill('SIGTERM');
     backendProcess = null;
   }
 }
