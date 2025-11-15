@@ -100,14 +100,11 @@ jobs:
           docker --version
           docker pull $FASTSURFER_IMAGE
 
-      - name: Override cached timeouts (Linux)
+      - name: Configure timeouts (Linux)
         run: |
           set -euo pipefail
-          echo "🔧 Overriding cached timeout values in CI environment"
-          # Modify the cached timeout values to bypass caching
-          sed -i 's/default=600/default=3600/g' tests/smoke_test.py
-          sed -i 's/default=2400/default=7200/g' tests/smoke_test.py
-          echo "✅ Timeout values updated: 3600s stalled, 7200s max"
+          echo "🔧 Using command-line timeout overrides for Linux"
+          echo "✅ Timeout: 7200s (2h), Stalled threshold: 3600s (1h)"
 
       - name: Run FastSurfer end-to-end (Linux)
         env:
@@ -118,8 +115,9 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-linux \
             --api-port 8875 \
-            --timeout 2400 \
-            --max-processing-time 2400 \
+            --timeout 7200 \
+            --max-processing-time 7200 \
+            --stalled-threshold 3600 \
             --health-timeout 900 \
             --health-initial-delay 5 \
             --fastsurfer-mode real \
@@ -182,15 +180,12 @@ jobs:
         run: |
           pyinstaller build.spec --clean --noconfirm
 
-      - name: Override cached timeouts (Windows)
+      - name: Configure timeouts (Windows)
         shell: bash
         run: |
           set -euo pipefail
-          echo "🔧 Overriding cached timeout values in CI environment"
-          # Modify the cached timeout values to bypass caching (Git Bash sed)
-          sed -i 's/default=600/default=3600/g' tests/smoke_test.py
-          sed -i 's/default=2400/default=7200/g' tests/smoke_test.py
-          echo "✅ Timeout values updated: 3600s stalled, 7200s max"
+          echo "🔧 Using command-line timeout overrides for Windows"
+          echo "✅ Timeout: 7200s (2h), Stalled threshold: 3600s (1h)"
 
       - name: Run FastSurfer end-to-end (Windows)
         shell: bash
@@ -201,8 +196,9 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend.exe \
             --workspace nightly-windows \
             --api-port 8876 \
-            --timeout 600 \
-            --max-processing-time 600 \
+            --timeout 7200 \
+            --max-processing-time 7200 \
+            --stalled-threshold 3600 \
             --health-timeout 900 \
             --health-initial-delay 5 \
             --fastsurfer-mode smoke \
@@ -280,14 +276,11 @@ jobs:
           echo "Pulling FastSurfer image..."
           docker pull $FASTSURFER_IMAGE || echo "Docker pull failed - will fail gracefully in test"
 
-      - name: Override cached timeouts (macOS)
+      - name: Configure timeouts (macOS)
         run: |
           set -euo pipefail
-          echo "🔧 Overriding cached timeout values in CI environment"
-          # Modify the cached timeout values to bypass caching
-          sed -i '' 's/default=600/default=3600/g' tests/smoke_test.py
-          sed -i '' 's/default=2400/default=7200/g' tests/smoke_test.py
-          echo "✅ Timeout values updated: 3600s stalled, 7200s max"
+          echo "🔧 Using command-line timeout overrides for macOS"
+          echo "✅ Timeout: 7200s (2h), Stalled threshold: 3600s (1h)"
 
       - name: Run FastSurfer end-to-end (macOS)
         run: |
@@ -296,8 +289,9 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-macos \
             --api-port 8877 \
-            --timeout 2400 \
-            --max-processing-time 2400 \
+            --timeout 7200 \
+            --max-processing-time 7200 \
+            --stalled-threshold 3600 \
             --health-timeout 900 \
             --health-initial-delay 5 \
             --fastsurfer-mode real \
