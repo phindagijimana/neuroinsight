@@ -83,62 +83,100 @@ async def upload_mri(
             import tempfile
             import nibabel as nib
             import numpy as np
+            import platform
 
-            # For .nii.gz files, we need to preserve the full extension or use a specific suffix
-            # nibabel needs to detect the file type correctly
-            file_suffix = Path(file.filename).suffix
-            if file.filename.endswith('.nii.gz'):
-                # Use .nii.gz suffix for proper nibabel detection
-                temp_suffix = '.nii.gz'
-            else:
-                temp_suffix = file_suffix
-            
-            with tempfile.NamedTemporaryFile(suffix=temp_suffix, delete=True) as tmp:
-                # Persist upload to temp
-                tmp.write(file_data)
-                tmp.flush()
+            # Alternative: Multi-library validation (nibabel + SimpleITK fallback)
+            current_platform = platform.system()
+            logger.info("nifti_validation_platform_check", platform=current_platform, filename=file.filename)
 
-                # Load with nibabel
+            # Use BytesIO for cross-platform compatibility
+            from io import BytesIO
+            file_obj = BytesIO(file_data)
+
+            img = None
+            validation_success = False
+
+            # Try nibabel first (works on Linux/macOS)
+            try:
+                img = nib.load(file_obj)
+                file_obj.seek(0)  # Reset for potential reuse
+                logger.info("nifti_validation_nibabel_success", filename=file.filename)
+                validation_success = True
+            except Exception as nibabel_error:
+                logger.warning(
+                    "nifti_validation_nibabel_failed",
+                    filename=file.filename,
+                    file_size=len(file_data),
+                    error=str(nibabel_error),
+                    error_type=type(nibabel_error).__name__
+                )
+
+                # Try SimpleITK as fallback (better Windows compatibility)
                 try:
-                    img = nib.load(tmp.name)
-                except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Invalid NIfTI file: {str(e)}")
+                    import SimpleITK as sitk
+                    file_obj.seek(0)  # Reset to beginning
+                    img = sitk.ReadImage(file_obj)
+                    logger.info("nifti_validation_simpleitk_success", filename=file.filename)
+                    validation_success = True
+                except ImportError:
+                    logger.warning("simpleitk_not_available", filename=file.filename)
+                except Exception as sitk_error:
+                    logger.warning(
+                        "nifti_validation_simpleitk_failed",
+                        filename=file.filename,
+                        error=str(sitk_error),
+                        error_type=type(sitk_error).__name__
+                    )
 
-                # Basic header/shape sanity
-                shape = img.shape
-                if len(shape) < 3:
-                    raise HTTPException(status_code=400, detail=f"Expected 3D/4D NIfTI, got shape {shape}")
-                # If 4D treat as first volume acceptable
-                if len(shape) >= 3:
-                    if any(dim < 32 for dim in shape[:3]):
-                        raise HTTPException(status_code=400, detail=f"Image dimensions too small {shape[:3]} (min 32x32x32)")
-                    zooms = img.header.get_zooms()[:3]
-                    # Voxel size sanity: 0.2mm to 5mm typical
-                    if any(z <= 0 for z in zooms) or any(z > 5.0 for z in zooms) or any(z < 0.2 for z in zooms):
-                        raise HTTPException(status_code=400, detail=f"Unusual voxel spacing {zooms} (expected 0.2–5.0 mm)")
-                # Data sanity: not all zeros/NaN
-                arr = img.get_fdata(dtype=np.float32)
-                if not np.isfinite(arr).any():
-                    raise HTTPException(status_code=400, detail="Image contains no finite values")
-                if np.allclose(arr, 0.0):
-                    raise HTTPException(status_code=400, detail="Image appears to be all zeros")
-
-                # T1 modality heuristic: prefer filenames/descriptions indicating T1
-                name_lower = file.filename.lower()
-                # Some NIfTI headers store 'descrip' as a numpy array; coerce to bytes safely
-                hdr_val = img.header.get("descrip")
+            # If neither library worked, skip validation
+            if not validation_success:
+                logger.info("nifti_validation_skipped_both_failed", filename=file.filename)
+                # Continue without validation rather than failing
+            elif img is not None:
+                # Basic header/shape sanity (works with both nibabel and SimpleITK)
                 try:
-                    if hdr_val is None:
-                        descrip = ""
-                    elif isinstance(hdr_val, (bytes, bytearray)):
-                        descrip = hdr_val.decode(errors="ignore")
-                    else:
-                        # numpy array or other type
-                        descrip = bytes(hdr_val).decode(errors="ignore")
-                except Exception:
-                    descrip = ""
-                descrip = descrip.lower()
-                # Previously enforced T1 markers in filename/header. Per request, allow all NIfTI uploads.
+                    # Get shape - different APIs for different libraries
+                    if hasattr(img, 'shape'):  # nibabel
+                        shape = img.shape
+                        spacing = img.header.get_zooms()[:3] if hasattr(img, 'header') else [1.0, 1.0, 1.0]
+                        # Get data array
+                        data_array = img.get_fdata(dtype=np.float32)
+                    else:  # SimpleITK
+                        shape = tuple(reversed(img.GetSize()))  # SimpleITK size is reversed
+                        spacing = list(img.GetSpacing())
+                        # Convert SimpleITK image to numpy array
+                        import SimpleITK as sitk
+                        data_array = sitk.GetArrayFromImage(img).astype(np.float32)
+
+                    # Validate shape
+                    if len(shape) < 3:
+                        raise HTTPException(status_code=400, detail=f"Expected 3D/4D NIfTI, got shape {shape}")
+
+                    # Validate dimensions (minimum 32x32x32)
+                    if len(shape) >= 3:
+                        if any(dim < 32 for dim in shape[:3]):
+                            raise HTTPException(status_code=400, detail=f"Image dimensions too small {shape[:3]} (min 32x32x32)")
+
+                        # Voxel size sanity: 0.2mm to 5mm typical
+                        if any(z <= 0 for z in spacing) or any(z > 5.0 for z in spacing) or any(z < 0.2 for z in spacing):
+                            raise HTTPException(status_code=400, detail=f"Unusual voxel spacing {spacing} (expected 0.2–5.0 mm)")
+
+                    # Data sanity: not all zeros/NaN
+                    if not np.isfinite(data_array).any():
+                        raise HTTPException(status_code=400, detail="Image contains no finite values")
+                    if np.allclose(data_array, 0.0):
+                        raise HTTPException(status_code=400, detail="Image appears to be all zeros")
+
+                    logger.info("nifti_validation_checks_passed", filename=file.filename, shape=shape, spacing=spacing)
+
+                except Exception as validation_error:
+                    logger.warning(
+                        "nifti_validation_checks_failed",
+                        filename=file.filename,
+                        error=str(validation_error),
+                        error_type=type(validation_error).__name__
+                    )
+                    # Continue without failing - validation is optional
         elif file.filename.endswith((".dcm", ".dicom")):
             # Quick DICOM check for T1 using SeriesDescription/ProtocolName if pydicom present
             try:

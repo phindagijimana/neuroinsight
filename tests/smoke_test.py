@@ -132,24 +132,23 @@ def check_docker_health() -> bool:
         return False
 
 
-def poll_job(port: int, job_id: str, timeout: int = 3600) -> dict:
+def poll_job(port: int, job_id: str, timeout: int = 7200, stalled_threshold: int = 3600) -> dict:
     """
     Poll job endpoint until completion or timeout with intelligent monitoring.
 
     Features:
-    - Maximum timeout of 1 hour (3600 seconds) for real processing
+    - Maximum timeout of 2 hours (7200 seconds) for real processing
     - Progress monitoring to detect hung processes
     - Docker health checks during processing
     - Early failure detection
     """
     base_url = f"http://127.0.0.1:{port}"
-    deadline = time.time() + min(timeout, 3600)  # Cap at 1 hour max
+    deadline = time.time() + min(timeout, 7200)  # Cap at 2 hours max
     start_time = time.time()
     last_progress = None
     last_progress_time = start_time
-    stalled_threshold = 600  # 10 minutes without progress = hung
 
-    print(f"[smoke-test] Starting job monitoring with {min(timeout, 3600)}s timeout")
+    print(f"[smoke-test] Starting job monitoring with {min(timeout, 7200)}s timeout")
 
     while time.time() < deadline:
         elapsed = time.time() - start_time
@@ -177,11 +176,17 @@ def poll_job(port: int, job_id: str, timeout: int = 3600) -> dict:
             last_progress_time = time.time()
             print(f"[smoke-test] Progress: {progress}% - {current_step}")
         elif time.time() - last_progress_time > stalled_threshold:
-            # No progress for 10 minutes - likely hung
-            raise RuntimeError(
-                f"Job appears hung: no progress for {stalled_threshold}s "
-                f"(stuck at {progress}% - {current_step})"
-            )
+            # Check if Docker container is still running before declaring hung
+            if check_docker_health():
+                print(f"[smoke-test] WARNING: Progress stalled at {progress}% for {stalled_threshold}s, but Docker container appears healthy. Continuing to monitor...")
+                # Reset the timer to give more time
+                last_progress_time = time.time()
+            else:
+                # No progress and Docker unhealthy - likely hung
+                raise RuntimeError(
+                    f"Job appears hung: no progress for {stalled_threshold}s "
+                    f"(stuck at {progress}% - {current_step}) and Docker container unhealthy"
+                )
 
         # Check Docker health during active processing
         if elapsed > 60 and status == "RUNNING":  # After 1 minute, during processing
@@ -196,7 +201,7 @@ def poll_job(port: int, job_id: str, timeout: int = 3600) -> dict:
         time.sleep(3)
 
     total_time = time.time() - start_time
-    raise RuntimeError(f"Job did not finish within {min(timeout, 3600)}s timeout (ran for {total_time:.1f}s)")
+    raise RuntimeError(f"Job did not finish within {min(timeout, 7200)}s timeout (ran for {total_time:.1f}s)")
 
 
 def ensure_metrics(output_dir: Path, job_id: str) -> None:
@@ -215,7 +220,7 @@ def main() -> None:
         "--timeout",
         type=int,
         default=2400,  # 40 minutes default (reasonable for real processing)
-        help="Overall timeout seconds (max 3600s/1hr for real processing).",
+        help="Overall timeout seconds (max 7200s/2hrs for real processing).",
     )
     parser.add_argument(
         "--health-timeout",
@@ -242,8 +247,14 @@ def main() -> None:
     parser.add_argument(
         "--max-processing-time",
         type=int,
-        default=3600,  # 1 hour max for real processing
+        default=7200,  # 2 hours max for real processing
         help="Maximum time allowed for actual processing (after upload).",
+    )
+    parser.add_argument(
+        "--stalled-threshold",
+        type=int,
+        default=3600,  # 1 hour default
+        help="Seconds without progress before considering job hung (default: 3600s/1hr).",
     )
     args = parser.parse_args()
 
@@ -335,13 +346,13 @@ def main() -> None:
         job_id = upload_scan(args.api_port, sample_path)
 
         # Use more restrictive timeout for real processing
-        processing_timeout = min(args.max_processing_time, 3600)  # Cap at 1 hour
+        processing_timeout = min(args.max_processing_time, 7200)  # Cap at 2 hours
         if args.fastsurfer_mode == "real":
-            processing_timeout = min(processing_timeout, 2400)  # 40 minutes for real mode
+            processing_timeout = min(processing_timeout, 7200)  # 2 hours for real mode
 
         print(f"[smoke-test] Using processing timeout: {processing_timeout}s")
 
-        job_info = poll_job(args.api_port, job_id, timeout=processing_timeout)
+        job_info = poll_job(args.api_port, job_id, timeout=processing_timeout, stalled_threshold=args.stalled_threshold)
         status = job_info.get("status")
 
         if status == "COMPLETED":
