@@ -38,6 +38,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0  # Full clone to bypass caching
+          clean: true
           lfs: true
 
       - name: Ensure sample image (Git LFS)
@@ -118,6 +120,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0  # Full clone to bypass caching
+          clean: true
           lfs: true
 
       - name: Ensure sample image (Git LFS)
@@ -180,6 +184,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0  # Full clone to bypass caching
+          clean: true
           lfs: true
 
       - name: Ensure sample image (Git LFS)
