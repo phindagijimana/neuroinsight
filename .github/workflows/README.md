@@ -32,28 +32,29 @@ git push origin desktop-v1.1.1
 
 ---
 
-### 2. `desktop-nightly-validation-v11.yml` 🔧 **CRITICAL FIXES**
-**Status**: ✅ Active - **USE THIS ONE** (Fixed critical hangs)
-**Purpose**: Nightly validation testing with real brain processing
+### 2. `desktop-nightly-validation-v12.yml` 🔧 **CRITICAL FIXES - NO MORE HANGS**
+**Status**: ✅ Active - **USE THIS ONE** (Complete fix for 3+ hour hangs)
+**Purpose**: Nightly validation testing with all critical fixes
 
 **What it does:**
 - Runs automated smoke tests on Linux, Windows, macOS
 - Uses real brain scan (not synthetic) to prevent hangs
-- Intelligent timeout detection (30-60 min max)
+- Intelligent timeout detection (40 min max for real processing)
 - Docker health checks during processing
 - Early failure detection for hung processes
-- Comprehensive error handling and logging
+- Comprehensive error handling and progress monitoring
+- Robust macOS Docker setup with graceful failure handling
 
 **Triggers:**
 - **Automatic**: Daily at 5:30 AM UTC (12:30 AM EST)
-- **Manual**: Go to Actions tab → "Desktop Nightly Validation v11" → "Run workflow"
+- **Manual**: Go to Actions tab → "Desktop Nightly Validation v12" → "Run workflow"
 
 **Test Coverage:**
 - Linux: Full FastSurfer processing with Docker
 - Windows: Smoke tests (no Docker support)
 - macOS: Full FastSurfer processing with Colima
 
-**Expected runtime**: 15-45 minutes (vs 3+ hours before fixes)
+**Expected runtime**: 15-45 minutes (vs 3+ hours before)
 
 ---
 
@@ -66,12 +67,12 @@ git push origin desktop-v1.1.1
 ## Workflow History
 
 ### Deprecated/Removed:
-- ❌ `desktop-nightly-validation-v10.yml` and earlier - **CRITICAL BUG**: Used synthetic test image that caused 3+ hour hangs
+- ❌ `desktop-nightly-validation-v10.yml` and `v11.yml` - **CRITICAL BUG**: Used synthetic test image that caused 3+ hour hangs
 - ❌ `desktop-build-v14-complete.yml` - Removed (had frontend bundling bug)
 
 ---
 
-## Critical Fix in Nightly Validation v11
+## Critical Fix in Nightly Validation v12
 
 ### Problem:
 Nightly validation runs were **failing catastrophically** with 3+ hour hangs that wasted significant cloud resources and provided no testing value.

@@ -1,11 +1,12 @@
-name: Desktop Nightly Validation v11
+name: Desktop Nightly Validation v12
 
-# IMPROVEMENTS OVER v10:
+# CRITICAL FIXES - NO MORE 3+ HOUR HANGS:
 # - Uses real brain scan instead of synthetic image (prevents hangs)
-# - Intelligent timeout detection (30-60 min max for real processing)
+# - Intelligent timeout detection (40 min max for real processing)
 # - Docker health checks during processing
 # - Early failure detection for hung processes
 # - Better error handling and progress monitoring
+# - Robust macOS Docker setup with graceful failure handling
 
 on:
   schedule:
