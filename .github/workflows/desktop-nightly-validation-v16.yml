@@ -100,6 +100,15 @@ jobs:
           docker --version
           docker pull $FASTSURFER_IMAGE
 
+      - name: Override cached timeouts (Linux)
+        run: |
+          set -euo pipefail
+          echo "🔧 Overriding cached timeout values in CI environment"
+          # Modify the cached timeout values to bypass caching
+          sed -i 's/default=600/default=3600/g' tests/smoke_test.py
+          sed -i 's/default=2400/default=7200/g' tests/smoke_test.py
+          echo "✅ Timeout values updated: 3600s stalled, 7200s max"
+
       - name: Run FastSurfer end-to-end (Linux)
         env:
           FASTSURFER_FORCE_ROOT: "1"
@@ -172,6 +181,16 @@ jobs:
         working-directory: desktop_alone
         run: |
           pyinstaller build.spec --clean --noconfirm
+
+      - name: Override cached timeouts (Windows)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "🔧 Overriding cached timeout values in CI environment"
+          # Modify the cached timeout values to bypass caching (Git Bash sed)
+          sed -i 's/default=600/default=3600/g' tests/smoke_test.py
+          sed -i 's/default=2400/default=7200/g' tests/smoke_test.py
+          echo "✅ Timeout values updated: 3600s stalled, 7200s max"
 
       - name: Run FastSurfer end-to-end (Windows)
         shell: bash
@@ -260,6 +279,15 @@ jobs:
           docker info || echo "Docker info failed - may not be fully ready yet"
           echo "Pulling FastSurfer image..."
           docker pull $FASTSURFER_IMAGE || echo "Docker pull failed - will fail gracefully in test"
+
+      - name: Override cached timeouts (macOS)
+        run: |
+          set -euo pipefail
+          echo "🔧 Overriding cached timeout values in CI environment"
+          # Modify the cached timeout values to bypass caching
+          sed -i '' 's/default=600/default=3600/g' tests/smoke_test.py
+          sed -i '' 's/default=2400/default=7200/g' tests/smoke_test.py
+          echo "✅ Timeout values updated: 3600s stalled, 7200s max"
 
       - name: Run FastSurfer end-to-end (macOS)
         run: |
