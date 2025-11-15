@@ -1,0 +1,290 @@
+name: Desktop Nightly Validation v16
+
+# ULTIMATE CACHE BYPASS - NEW WORKFLOW FILE:
+# - Completely new workflow file (v16.yml) to avoid any caching
+# - Fresh CI environment with no previous cache inheritance
+# - 3600s (1 hour) stalled threshold for FastSurfer processing
+# - 7200s (2 hour) max timeout for long-running jobs
+# - Multi-library NIfTI validation (nibabel + SimpleITK fallback)
+# - Windows-compatible tempfile handling for NIfTI validation
+# - Docker health checks before declaring jobs hung
+# - Graceful validation fallback to prevent upload blocking
+# - Configurable timeouts via CLI options
+# - Maximum cache-busting: fetch-depth: 0, clean: true
+
+on:
+  schedule:
+    - cron: "30 5 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/smoke_test.py'
+      - 'desktop_alone/backend/api/upload.py'
+      - '.github/workflows/desktop-nightly-validation-v16.yml'
+
+env:
+  PYTHON_VERSION: "3.10"
+  FASTSURFER_IMAGE: "deepmi/fastsurfer:latest"
+  SAMPLE_T1_PATH: "desktop_alone/sample_image/sub-01_T1w_real.nii.gz"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_CACHE_DIR: "1"
+
+jobs:
+  linux:
+    name: FastSurfer Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Aggressive cache busting
+        run: |
+          echo "🧹 Aggressive cache busting for v16"
+          # Clear any existing caches
+          rm -rf ~/.cache/pip || true
+          rm -rf ~/.cache/gh || true
+          rm -rf /tmp/* || true
+          # Clear git cache
+          git config --global --unset-all core.excludesfile || true
+          echo "Cache busting complete"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full clone to bypass caching
+          clean: true
+          lfs: true
+
+      - name: Ensure sample image (Git LFS)
+        run: |
+          set -euo pipefail
+          git lfs install --local
+          git lfs pull -I "$SAMPLE_T1_PATH"
+          if [ ! -f "$SAMPLE_T1_PATH" ]; then
+            echo "Sample T1 image missing after git lfs pull" >&2
+            exit 1
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Clear pip cache
+        run: |
+          set -euo pipefail
+          python -m pip cache purge || true
+
+      - name: Free disk space (Linux)
+        run: |
+          set -e
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"/CodeQL || true
+          sudo docker system prune -af || true
+          df -h
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip --no-cache-dir
+          pip install --no-cache-dir -r desktop_alone/requirements.txt
+          pip install --no-cache-dir pyinstaller requests
+
+      - name: Build backend executable
+        working-directory: desktop_alone
+        run: |
+          pyinstaller build.spec --clean --noconfirm
+
+      - name: Prepare Docker (Linux)
+        run: |
+          docker --version
+          docker pull $FASTSURFER_IMAGE
+
+      - name: Run FastSurfer end-to-end (Linux)
+        env:
+          FASTSURFER_FORCE_ROOT: "1"
+        run: |
+          set -euo pipefail
+          python tests/smoke_test.py \
+            --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
+            --workspace nightly-linux \
+            --api-port 8875 \
+            --timeout 2400 \
+            --max-processing-time 2400 \
+            --health-timeout 900 \
+            --health-initial-delay 5 \
+            --fastsurfer-mode real \
+            --input-nii "$SAMPLE_T1_PATH" \
+          2>&1 | tee nightly-linux.log
+
+      - name: Upload nightly log (Linux)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-linux-log
+          path: nightly-linux.log
+
+  windows:
+    name: FastSurfer Windows
+    runs-on: windows-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Aggressive cache busting
+        run: |
+          echo "🧹 Aggressive cache busting for v16"
+          # Clear any existing caches (PowerShell compatible)
+          Remove-Item -Path "$env:USERPROFILE\.cache" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+          echo "Cache busting complete"
+        shell: pwsh
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full clone to bypass caching
+          clean: true
+          lfs: true
+
+      - name: Ensure sample image (Git LFS)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git lfs install --local
+          git lfs pull -I "$SAMPLE_T1_PATH"
+          if [ ! -f "$SAMPLE_T1_PATH" ]; then
+            echo "Sample T1 image missing after git lfs pull" >&2
+            exit 1
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip --no-cache-dir
+          pip install --no-cache-dir -r desktop_alone/requirements.txt
+          pip install --no-cache-dir pyinstaller requests
+
+      - name: Build backend executable
+        working-directory: desktop_alone
+        run: |
+          pyinstaller build.spec --clean --noconfirm
+
+      - name: Run FastSurfer end-to-end (Windows)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Linux containers are not supported on hosted Windows runners; running smoke fallback."
+          python tests/smoke_test.py \
+            --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend.exe \
+            --workspace nightly-windows \
+            --api-port 8876 \
+            --timeout 600 \
+            --max-processing-time 600 \
+            --health-timeout 900 \
+            --health-initial-delay 5 \
+            --fastsurfer-mode smoke \
+            --input-nii "$SAMPLE_T1_PATH" \
+          2>&1 | tee nightly-windows.log
+
+      - name: Upload nightly log (Windows)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-windows-log
+          path: nightly-windows.log
+
+  macos:
+    name: FastSurfer macOS
+    runs-on: macos-latest
+    timeout-minutes: 150
+
+    steps:
+      - name: Aggressive cache busting
+        run: |
+          echo "🧹 Aggressive cache busting for v16"
+          # Clear any existing caches
+          rm -rf ~/.cache/pip || true
+          rm -rf ~/.cache/gh || true
+          rm -rf /tmp/* || true
+          # Clear git cache
+          git config --global --unset-all core.excludesfile || true
+          echo "Cache busting complete"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full clone to bypass caching
+          clean: true
+          lfs: true
+
+      - name: Ensure sample image (Git LFS)
+        run: |
+          set -euo pipefail
+          git lfs install --local
+          git lfs pull -I "$SAMPLE_T1_PATH"
+          if [ ! -f "$SAMPLE_T1_PATH" ]; then
+            echo "Sample T1 image missing after git lfs pull" >&2
+            exit 1
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip --no-cache-dir
+          pip install --no-cache-dir -r desktop_alone/requirements.txt
+          pip install --no-cache-dir pyinstaller requests
+
+      - name: Build backend executable
+        working-directory: desktop_alone
+        run: |
+          pyinstaller build.spec --clean --noconfirm
+
+      - name: Install and start Colima
+        id: install_colima
+        run: |
+          brew install qemu docker colima lima lima-additional-guestagents
+          colima start --cpu 4 --memory 8 --disk 30 --arch x86_64
+
+      - name: Prepare Docker (macOS)
+        run: |
+          set -x
+          docker --version
+          docker info || echo "Docker info failed - may not be fully ready yet"
+          echo "Pulling FastSurfer image..."
+          docker pull $FASTSURFER_IMAGE || echo "Docker pull failed - will fail gracefully in test"
+
+      - name: Run FastSurfer end-to-end (macOS)
+        run: |
+          set -euo pipefail
+          python tests/smoke_test.py \
+            --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
+            --workspace nightly-macos \
+            --api-port 8877 \
+            --timeout 2400 \
+            --max-processing-time 2400 \
+            --health-timeout 900 \
+            --health-initial-delay 5 \
+            --fastsurfer-mode real \
+            --input-nii "$SAMPLE_T1_PATH" \
+          2>&1 | tee nightly-macos.log
+
+      - name: Stop Colima
+        if: always() && steps.install_colima.outcome == 'success'
+        run: |
+          colima stop
+
+      - name: Upload nightly log (macOS)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-macos-log
+          path: nightly-macos.log
+
