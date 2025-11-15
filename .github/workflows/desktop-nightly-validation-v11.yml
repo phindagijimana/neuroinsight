@@ -207,8 +207,11 @@ jobs:
 
       - name: Prepare Docker (macOS)
         run: |
+          set -x
           docker --version
-          docker pull $FASTSURFER_IMAGE
+          docker info || echo "Docker info failed - may not be fully ready yet"
+          echo "Pulling FastSurfer image..."
+          docker pull $FASTSURFER_IMAGE || echo "Docker pull failed - will fail gracefully in test"
 
       - name: Run FastSurfer end-to-end (macOS)
         run: |
