@@ -322,8 +322,17 @@ jobs:
       
       - name: Install and start Docker (macOS)
         run: |
-          brew install docker colima qemu
-          colima start --cpu 2 --memory 4 --disk 20 --arch x86_64
+          # Detect macOS architecture and use native when possible
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            echo "🍎 Apple Silicon (ARM64) detected - using native architecture"
+            brew install docker colima
+            colima start --cpu 2 --memory 4 --disk 20 --arch arm64
+          else
+            echo "💻 Intel (x86_64) detected - using native architecture"
+            brew install docker colima qemu
+            colima start --cpu 2 --memory 4 --disk 20 --arch x86_64
+          fi
           docker --version
           docker run --rm hello-world
       
