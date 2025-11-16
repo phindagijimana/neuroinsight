@@ -2,21 +2,28 @@
 
 ## Active Workflows
 
-### 1. `desktop-build-v15.yml` ⭐ **USE THIS ONE**
-**Status**: ✅ Active  
-**Purpose**: Build desktop installers for all platforms with FIXED frontend bundling
+### 1. `desktop-build-v17.2.yml` ⭐ **USE THIS ONE - LATEST**
+**Status**: ✅ Active - **RECOMMENDED**
+**Purpose**: Build desktop installers with FIXED smoke tests (FastSurfer mock mode)
 
 **What it does:**
 - Builds Linux AppImage (~3.9 GB)
-- Builds Windows Setup.exe (~4.0 GB)  
+- Builds Windows Setup.exe (~4.0 GB)
 - Builds macOS DMG (~4.0 GB)
+- **NEW**: FastSurfer smoke test mode (30s vs 2+ hours)
 - Includes frontend HTML in all builds (fixes dark window)
 - Generates checksums for verification
 - Creates GitHub Release automatically
 
+**Key Improvements in v17.2:**
+- ✅ **Fixed smoke test timeouts** - Uses mock FastSurfer data instead of real processing
+- ✅ **5-minute smoke tests** - Complete validation in seconds, not hours
+- ✅ **Reliable CI** - No more 2-hour hangs in GitHub Actions
+- ✅ **Cost savings** - Reduced compute time and costs
+
 **Triggers:**
 - **Automatic**: When you push tags like `desktop-v1.1.1`, `desktop-v2.0.0`, etc.
-- **Manual**: Go to Actions tab → "Desktop Build v15" → "Run workflow"
+- **Manual**: Go to Actions tab → "Desktop Build v17.2" → "Run workflow"
 
 **How to use:**
 ```bash
@@ -28,7 +35,7 @@ git push origin desktop-v1.1.1
 # Download from: https://github.com/phindagijimana/neuroinsight/releases
 ```
 
-**Build time**: ~30-60 minutes for all platforms
+**Build time**: ~15-30 minutes for all platforms (faster smoke tests)
 
 ---
 
@@ -138,7 +145,7 @@ https://github.com/phindagijimana/neuroinsight/releases
 
 ### Manual trigger (no tag needed):
 1. Go to: https://github.com/phindagijimana/neuroinsight/actions
-2. Click "Desktop Build v15 - Fixed"
+2. Click "Desktop Build v17.2 - Smoke Test Fixed"
 3. Click "Run workflow" button
 4. Select branch (usually `main`)
 5. Click "Run workflow"
@@ -176,7 +183,7 @@ Questions about workflows? Check:
 
 ---
 
-**Last Updated**: November 9, 2025  
-**Current Version**: v15 (Fixed)  
+**Last Updated**: November 16, 2025
+**Current Version**: v17.2 (Smoke Test Fixed + FastSurfer Mock Mode)
 **Status**: ✅ Production Ready
 

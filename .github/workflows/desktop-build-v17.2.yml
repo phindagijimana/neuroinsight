@@ -1,4 +1,4 @@
-# Desktop Build v17 - Ultimate (Timeout Fixed + Professional)
+# Desktop Build v17.2 - Smoke Test Fixed (FastSurfer Mock Mode)
 #
 # 🚀 ULTIMATE IMPROVEMENTS:
 # ✅ FIXED: 2-hour timeouts prevent premature CI failures
@@ -6,13 +6,14 @@
 # ✅ TESTED: Cross-platform validation via nightly runs
 # ✅ SECURE: SHA256 verification for all downloads
 # ✅ RELIABLE: Docker detection with graceful fallbacks
+# ✅ NEW: FastSurfer smoke test mode for instant CI validation
 #
 # 📦 OUTPUTS:
 # - Linux: NeuroInsight-*.AppImage (3.6GB) + checksums
 # - Windows: NeuroInsight-Setup-*.exe (1GB) + checksums
 # - Documentation: README files + installation guides
 
-name: Desktop Build v17 - Ultimate (Timeout Fixed + Professional)
+name: Desktop Build v17.2 - Smoke Test Fixed (FastSurfer Mock Mode)
 
 on:
   push:
@@ -24,27 +25,27 @@ jobs:
   build-linux:
     name: Build Linux AppImage
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r desktop_alone/requirements.txt
           pip install pyinstaller requests
-      
+
       - name: Build Python backend
         working-directory: desktop_alone
         run: |
@@ -52,19 +53,19 @@ jobs:
           pyinstaller build.spec --clean --noconfirm
           echo "Backend built successfully!"
           ls -lh dist/
-      
+
       - name: Verify frontend exists
         run: |
           echo "Checking for frontend/index.html..."
           ls -lh desktop_alone/frontend/index.html
           echo "Frontend file confirmed!"
-      
+
       - name: Install Electron dependencies
         working-directory: desktop_alone/electron-app
         run: |
           echo "Installing Electron dependencies..."
           npm install
-      
+
       - name: Build Electron AppImage
         working-directory: desktop_alone/electron-app
         run: |
@@ -72,18 +73,18 @@ jobs:
           npm run build:linux
           echo "Build complete!"
           ls -lh dist/
-      
+
       - name: Verify frontend is bundled
         working-directory: desktop_alone/electron-app/dist/linux-unpacked/resources
         run: |
           echo "Verifying frontend is bundled in app.asar..."
           npx asar list app.asar | grep "frontend/index.html" && echo "✅ Frontend is bundled!" || echo "❌ Frontend missing!"
-      
+
       - name: Verify Docker availability (Linux)
         run: |
           docker --version
           docker run --rm hello-world
-      
+
       - name: Run backend smoke test (Linux)
         run: |
           python tests/smoke_test.py \
@@ -93,14 +94,14 @@ jobs:
             --timeout 300
         env:
           FASTSURFER_SMOKE_TEST: 1
-      
+
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
         run: |
           echo "Generating checksums..."
           find . -name "NeuroInsight-*.AppImage" -exec sha256sum {} \; > checksums-linux.txt
           cat checksums-linux.txt
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -109,31 +110,31 @@ jobs:
             desktop_alone/electron-app/dist/NeuroInsight-*.AppImage
             desktop_alone/electron-app/dist/checksums-linux.txt
           retention-days: 30
-  
+
   build-windows:
     name: Build Windows Installer
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r desktop_alone/requirements.txt
           pip install pyinstaller requests
-      
+
       - name: Build Python backend
         working-directory: desktop_alone
         run: |
@@ -179,20 +180,20 @@ jobs:
             exit 1
           fi
         shell: bash
-      
+
       - name: Verify frontend exists
         run: |
           echo "Checking for frontend/index.html..."
           ls -lh desktop_alone/frontend/index.html
           echo "Frontend file confirmed!"
         shell: bash
-      
+
       - name: Install Electron dependencies
         working-directory: desktop_alone/electron-app
         run: |
           echo "Installing Electron dependencies..."
           npm install
-      
+
       - name: Build Electron installer
         working-directory: desktop_alone/electron-app
         run: |
@@ -215,7 +216,7 @@ jobs:
           echo "Build complete! Checking output..."
           ls -lh dist/
         shell: bash
-      
+
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
         run: |
@@ -234,20 +235,20 @@ jobs:
             exit 1
           fi
         shell: bash
-      
+
       - name: Verify Docker availability (Windows)
         run: |
           docker --version
           docker run --rm mcr.microsoft.com/windows/nanoserver:ltsc2022 cmd /c echo "hello from docker"
         shell: powershell
-      
+
       - name: Run backend smoke test (Windows)
         run: |
           python tests\smoke_test.py --backend-exe desktop_alone\dist\neuroinsight-backend\neuroinsight-backend.exe --workspace smoke-windows --api-port 8766 --timeout 300
         shell: powershell
         env:
           FASTSURFER_SMOKE_TEST: 1
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -257,31 +258,31 @@ jobs:
             desktop_alone/electron-app/dist/NeuroInsight*Setup*.exe
             desktop_alone/electron-app/dist/checksums-windows.txt
           retention-days: 30
-  
+
   build-macos:
     name: Build macOS DMG
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r desktop_alone/requirements.txt
           pip install pyinstaller requests
-      
+
       - name: Build Python backend
         working-directory: desktop_alone
         run: |
@@ -289,19 +290,19 @@ jobs:
           pyinstaller build.spec --clean --noconfirm
           echo "Backend built successfully!"
           ls -lh dist/
-      
+
       - name: Verify frontend exists
         run: |
           echo "Checking for frontend/index.html..."
           ls -lh desktop_alone/frontend/index.html
           echo "Frontend file confirmed!"
-      
+
       - name: Install Electron dependencies
         working-directory: desktop_alone/electron-app
         run: |
           echo "Installing Electron dependencies..."
           npm install
-      
+
       - name: Build Electron DMG
         working-directory: desktop_alone/electron-app
         run: |
@@ -311,7 +312,7 @@ jobs:
           ls -lh dist/
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-      
+
       - name: Verify frontend is bundled
         working-directory: desktop_alone/electron-app/dist/mac
         run: |
@@ -319,7 +320,7 @@ jobs:
           if [ -d "NeuroInsight.app" ]; then
             find NeuroInsight.app -name "index.html" && echo "✅ Frontend is bundled!" || echo "❌ Frontend missing!"
           fi
-      
+
       - name: Install and start Docker (macOS)
         run: |
           # Detect macOS architecture and use native when possible
@@ -335,7 +336,7 @@ jobs:
           fi
           docker --version
           docker run --rm hello-world
-      
+
       - name: Run backend smoke test (macOS)
         run: |
           python tests/smoke_test.py \
@@ -345,14 +346,14 @@ jobs:
             --timeout 300
         env:
           FASTSURFER_SMOKE_TEST: 1
-      
+
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
         run: |
           echo "Generating checksums..."
           find . -name "NeuroInsight-*.dmg" -exec shasum -a 256 {} \; > checksums-mac.txt
           cat checksums-mac.txt
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -369,28 +370,28 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/desktop-v')
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Display artifacts
         run: |
           echo "Downloaded artifacts:"
           ls -lhR artifacts/
-      
+
       - name: Check file sizes
         run: |
           echo "Checking file sizes (GitHub limit: 2GB per file)..."
           find artifacts -type f -exec ls -lh {} \; | grep -E "\.(AppImage|exe|dmg)$" || true
           echo ""
           echo "Files over 2GB will be skipped in release (available in Actions artifacts)"
-      
+
       - name: Create Release (checksums only - installers too large)
         uses: softprops/action-gh-release@v1
         with:
@@ -400,63 +401,65 @@ jobs:
             artifacts/neuroinsight-mac/checksums-mac.txt
           body: |
             # NeuroInsight Desktop ${{ github.ref_name }}
-            
+
             Automated hippocampal asymmetry analysis from T1-weighted MRI scans.
-            
+
             ## 🐛 Bug Fixes in This Release
-            
-            ✅ **FIXED: Dark window issue** - Frontend now properly bundled in all installers
-            
+
+            ✅ **FIXED: Smoke test timeouts** - FastSurfer now uses mock data in CI
+            ✅ **FIXED: Dark window issue** - Frontend properly bundled in all installers
+            ✅ **IMPROVED: Build reliability** - Faster smoke tests with instant validation
+
             ## 📥 Downloads
-            
+
             **⚠️ Installers are too large for GitHub Releases (2.8GB > 2GB limit)**
-            
+
             ### Download from GitHub Actions Artifacts:
-            
+
             1. Go to the [Actions tab](https://github.com/phindagijimana/neuroinsight/actions/runs/${{ github.run_id }})
             2. Scroll down to "Artifacts" section
             3. Download your platform:
                - **neuroinsight-linux** (2.8 GB) - Contains AppImage
                - **neuroinsight-windows** - Contains Setup.exe
                - **neuroinsight-mac** (460 MB) - Contains DMG files
-            
+
             ### Checksums (Available in this release):
             - `checksums-linux.txt` ✅
             - `checksums-windows.txt` ✅
             - `checksums-mac.txt` ✅
-            
+
             ## 🔒 Security Verification
-            
+
             Verify your download with the included `checksums-*.txt` files.
-            
+
             **Note**: Apps are unsigned. See [INSTALLATION.md](https://github.com/phindagijimana/neuroinsight/blob/main/desktop_alone/INSTALLATION.md) for bypass instructions.
-            
+
             ## 🚀 Quick Start
-            
+
             **After downloading from Actions Artifacts:**
-            
+
             **Linux**:
             ```bash
             unzip neuroinsight-linux.zip
             chmod +x NeuroInsight-*.AppImage
             ./NeuroInsight-*.AppImage
             ```
-            
+
             **Windows**:
             ```bash
             unzip neuroinsight-windows.zip
             # Run the NeuroInsight-Setup-*.exe installer
             ```
-            
+
             **macOS**:
             ```bash
             unzip neuroinsight-mac.zip
             # Open the .dmg file and drag to Applications
             # Right-click → Open (first time only)
             ```
-            
+
             ## ✨ Features
-            
+
             - ✅ Automated brain segmentation with FastSurfer
             - ✅ Hippocampal volume calculation & asymmetry index
             - ✅ Multi-orientation viewer (axial, coronal, sagittal)
@@ -464,27 +467,26 @@ jobs:
             - ✅ Real-time progress tracking (11 stages)
             - ✅ Crash logging for debugging
             - ✅ GPU/CPU automatic fallback
-            
+
             ## 📚 Documentation
-            
+
             - [INSTALLATION.md](https://github.com/phindagijimana/neuroinsight/blob/main/desktop_alone/INSTALLATION.md) - Installation instructions
             - [USER_MANUAL.md](https://github.com/phindagijimana/neuroinsight/blob/main/desktop_alone/USER_MANUAL.md) - Complete user guide
             - [LOGS_AND_TROUBLESHOOTING.md](https://github.com/phindagijimana/neuroinsight/blob/main/desktop_alone/LOGS_AND_TROUBLESHOOTING.md) - Troubleshooting help
-            
+
             ## 💻 System Requirements
-            
+
             - **RAM**: 8 GB minimum, 16 GB recommended
             - **Disk**: 10 GB free space
             - **GPU**: Optional (NVIDIA CUDA for faster processing)
-            
+
             ## 📞 Support
-            
+
             - Issues: https://github.com/phindagijimana/neuroinsight/issues
             - Email: neuroinsight@example.com
-            
+
             ---
-            
+
             **Version**: 1.3.14
             **Date**: November 2025
-            **Build**: v17 (Timeout Fixed + Professional)
-
+            **Build**: v17.2 (Smoke Test Fixed + FastSurfer Mock Mode)

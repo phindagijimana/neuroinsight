@@ -6,6 +6,7 @@ from DICOM conversion through hippocampal asymmetry calculation.
 """
 
 import json
+import os
 import platform
 import subprocess as subprocess_module
 from pathlib import Path
@@ -111,7 +112,7 @@ class MRIProcessor:
     def __init__(self, job_id: UUID, progress_callback=None):
         """
         Initialize MRI processor.
-        
+
         Args:
             job_id: Unique job identifier
             progress_callback: Optional callback function(progress: int, step: str) for progress updates
@@ -121,6 +122,9 @@ class MRIProcessor:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.process_pid = None  # Track subprocess PID for cleanup
         self.progress_callback = progress_callback
+
+        # Check if smoke test mode is enabled (for CI/testing)
+        self.smoke_test_mode = os.getenv("FASTSURFER_SMOKE_TEST") == "1"
         
         # Detect GPU availability
         self.has_gpu = self._detect_gpu()
@@ -244,22 +248,29 @@ class MRIProcessor:
     def _run_fastsurfer(self, nifti_path: Path) -> Path:
         """
         Run FastSurfer segmentation using Docker.
-        
+
         Executes FastSurfer container for whole brain segmentation.
-        
+        In smoke test mode, immediately returns mock data for faster CI testing.
+
         Args:
             nifti_path: Path to input NIfTI file
-        
+
         Returns:
             Path to FastSurfer output directory
-        
+
         Raises:
             DockerNotAvailableError: If Docker is not installed or not running
         """
         logger.info("running_fastsurfer_docker", input=str(nifti_path))
-        
+
         fastsurfer_dir = self.output_dir / "fastsurfer"
         fastsurfer_dir.mkdir(exist_ok=True)
+
+        # Smoke test mode: Skip Docker and create mock output immediately
+        if self.smoke_test_mode:
+            logger.info("smoke_test_mode_enabled", message="Using mock FastSurfer data for CI testing")
+            self._create_mock_fastsurfer_output(fastsurfer_dir)
+            return fastsurfer_dir
         
         # Check if Docker is available and running
         try:
