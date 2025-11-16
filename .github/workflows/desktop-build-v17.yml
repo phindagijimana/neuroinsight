@@ -322,7 +322,7 @@ jobs:
       
       - name: Install and start Docker (macOS)
         run: |
-          brew install docker colima
+          brew install docker colima qemu
           colima start --cpu 2 --memory 4 --disk 20 --arch x86_64
           docker --version
           docker run --rm hello-world
