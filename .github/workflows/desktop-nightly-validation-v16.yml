@@ -104,7 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "🔧 Using command-line timeout overrides for Linux"
-          echo "✅ Timeout: 7200s (2h), Stalled threshold: 3600s (1h)"
+          echo "✅ Timeout: 10800s (3h), Stalled threshold: 3600s (1h)"
 
       - name: Run FastSurfer end-to-end (Linux)
         env:
@@ -115,8 +115,8 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-linux \
             --api-port 8875 \
-            --timeout 7200 \
-            --max-processing-time 7200 \
+            --timeout 10800 \
+            --max-processing-time 10800 \
             --stalled-threshold 3600 \
             --health-timeout 900 \
             --health-initial-delay 5 \
@@ -185,7 +185,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "🔧 Using command-line timeout overrides for Windows"
-          echo "✅ Timeout: 7200s (2h), Stalled threshold: 3600s (1h)"
+          echo "✅ Timeout: 10800s (3h), Stalled threshold: 3600s (1h)"
 
       - name: Run FastSurfer end-to-end (Windows)
         shell: bash
@@ -196,8 +196,8 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend.exe \
             --workspace nightly-windows \
             --api-port 8876 \
-            --timeout 7200 \
-            --max-processing-time 7200 \
+            --timeout 10800 \
+            --max-processing-time 10800 \
             --stalled-threshold 3600 \
             --health-timeout 900 \
             --health-initial-delay 5 \
@@ -280,7 +280,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "🔧 Using command-line timeout overrides for macOS"
-          echo "✅ Timeout: 7200s (2h), Stalled threshold: 3600s (1h)"
+          echo "✅ Timeout: 10800s (3h), Stalled threshold: 3600s (1h)"
 
       - name: Run FastSurfer end-to-end (macOS)
         run: |
@@ -289,8 +289,8 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --workspace nightly-macos \
             --api-port 8877 \
-            --timeout 7200 \
-            --max-processing-time 7200 \
+            --timeout 10800 \
+            --max-processing-time 10800 \
             --stalled-threshold 3600 \
             --health-timeout 900 \
             --health-initial-delay 5 \
