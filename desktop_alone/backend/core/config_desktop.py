@@ -62,6 +62,10 @@ class DesktopSettings(BaseSettings):
     # Server settings
     host: str = Field(default="127.0.0.1", env="HOST")  # Desktop: localhost only
     port: int = Field(default=8000, env="PORT")
+
+    # API Configuration (aliases for compatibility)
+    api_host: str = Field(default="127.0.0.1", env="API_HOST")  # Desktop: localhost only
+    api_port: int = Field(default=8000, env="API_PORT")
     
     # CORS - Desktop mode allows localhost
     cors_origins: str = Field(default="http://localhost:8000,http://127.0.0.1:8000", env="CORS_ORIGINS")
