@@ -286,7 +286,7 @@ def main() -> None:
         create_sample_t1(sample_path)
 
     env = os.environ.copy()
-    env["DESKTOP_MODE"] = "1"
+    env["DESKTOP_MODE"] = "1"  # Force desktop mode for testing standalone app
     if args.fastsurfer_mode == "smoke":
         env["FASTSURFER_SMOKE_TEST"] = "1"
     else:
@@ -322,15 +322,42 @@ def main() -> None:
         creationflags=creationflags,
     )
 
+    # Start Celery worker for background task processing (only if not in desktop mode)
+    celery_proc = None
+    if env.get("DESKTOP_MODE") != "1":
+        celery_env = env.copy()
+        celery_env["PYTHONPATH"] = str(backend_path.parent.parent)  # Add project root to path
+        celery_proc = subprocess.Popen(
+            ["celery", "-A", "workers.celery_app", "worker", "--loglevel=info", "--concurrency=1"],
+            cwd=str(backend_path.parent.parent),  # Run from project root
+            env=celery_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            creationflags=creationflags,
+        )
+
     # Thread to print backend output in real-time
     backend_output_lines = []
-    def read_output():
+    celery_output_lines = []
+    def read_backend_output():
         for line in backend_proc.stdout:
             backend_output_lines.append(line)
-            print(line, end='', flush=True)
-    
-    output_thread = threading.Thread(target=read_output, daemon=True)
-    output_thread.start()
+            print(f"[BACKEND] {line}", end='', flush=True)
+
+    def read_celery_output():
+        if celery_proc:
+            for line in celery_proc.stdout:
+                celery_output_lines.append(line)
+                print(f"[CELERY] {line}", end='', flush=True)
+
+    backend_thread = threading.Thread(target=read_backend_output, daemon=True)
+    backend_thread.start()
+
+    celery_thread = None
+    if celery_proc:
+        celery_thread = threading.Thread(target=read_celery_output, daemon=True)
+        celery_thread.start()
 
     try:
         print(f"[smoke-test] Starting smoke test with timeout: {args.timeout}s, max processing: {args.max_processing_time}s")
@@ -369,6 +396,18 @@ def main() -> None:
         print(f"[smoke-test] ❌ FAILED: {e}", file=sys.stderr)
         raise  # Re-raise to ensure non-zero exit code
     finally:
+        # Terminate Celery worker (if started)
+        if celery_proc and celery_proc.poll() is None:
+            if os.name == "nt":
+                celery_proc.send_signal(signal.CTRL_BREAK_EVENT)
+                time.sleep(2)
+            celery_proc.terminate()
+            try:
+                celery_proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                celery_proc.kill()
+
+        # Terminate backend
         if backend_proc.poll() is None:
             if os.name == "nt":
                 backend_proc.send_signal(signal.CTRL_BREAK_EVENT)
