@@ -66,10 +66,12 @@ class TaskService:
         task_id = str(uuid.uuid4())
         
         logger.info(f"Submitting task {task_id}: {func.__name__}")
-        
+
         # Submit to thread pool
         future = executor.submit(func, *args, **kwargs)
-        
+
+        logger.info(f"Task {task_id} submitted to executor")
+
         return TaskResult(future, task_id)
     
     @staticmethod
