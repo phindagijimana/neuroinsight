@@ -18,6 +18,7 @@ backend_data = [
     ('backend', 'backend'),
     ('pipeline', 'pipeline'),
     ('frontend', 'frontend'),
+    ('workers', 'workers'),  # Desktop mode needs processing_desktop.py
 ]
 
 # Hidden imports - packages PyInstaller might not detect automatically
