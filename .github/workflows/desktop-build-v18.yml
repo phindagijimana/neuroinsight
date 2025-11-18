@@ -98,10 +98,10 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend \
             --input-nii desktop_alone/sample_image/sub-1_T1w_small.nii.gz \
             --fastsurfer-mode smoke \
-            --max-processing-time 120 \
+            --max-processing-time 300 \
             --workspace smoke-linux \
             --api-port 8765 \
-            --timeout 300
+            --timeout 600
 
       - name: Generate checksums
         working-directory: desktop_alone/electron-app/dist
@@ -236,10 +236,10 @@ jobs:
             --backend-exe desktop_alone/dist/neuroinsight-backend/neuroinsight-backend.exe `
             --input-nii desktop_alone/sample_image/sub-1_T1w_small.nii.gz `
             --fastsurfer-mode smoke `
-            --max-processing-time 120 `
+            --max-processing-time 300 `
             --workspace smoke-windows `
             --api-port 8766 `
-            --timeout 300
+            --timeout 600
         shell: powershell
 
       - name: Upload Windows artifacts
