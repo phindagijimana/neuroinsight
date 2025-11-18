@@ -1,0 +1,29 @@
+app-id: com.neuroinsight.desktop
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '23.08'
+command: neuroinsight-standalone
+
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --device=dri
+  - --share=network
+  - --filesystem=home:create
+  - --filesystem=xdg-documents:create
+  - --filesystem=xdg-download:create
+
+modules:
+  - name: neuroinsight
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/bin
+      - cp -r . /app/bin/neuroinsight
+      - chmod +x /app/bin/neuroinsight/neuroinsight-standalone
+      - ln -s /app/bin/neuroinsight/neuroinsight-standalone /app/bin/neuroinsight
+    sources:
+      - type: dir
+        path: ../dist/linux-unpacked

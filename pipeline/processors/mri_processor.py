@@ -95,42 +95,46 @@ class MRIProcessor:
         """
         logger.info("processing_pipeline_started", job_id=str(self.job_id))
         
-        # Step 1: Convert to NIfTI if needed
+        # Step 1: Convert to NIfTI if needed (5% - quick)
         if self.progress_callback:
-            self.progress_callback(17, "Preparing input file...")
+            self.progress_callback(5, "Preparing input file...")
         nifti_path = self._prepare_input(input_path)
-        
-        # Step 2: Run FastSurfer segmentation (whole brain) - LONGEST STEP
+
+        # Step 2: Run FastSurfer segmentation (whole brain) - LONGEST STEP (10% to 85%)
         if self.progress_callback:
-            self.progress_callback(20, "Running FastSurfer brain segmentation (this may take a while)...")
+            self.progress_callback(10, "Running FastSurfer brain segmentation (this may take a while)...")
         fastsurfer_output = self._run_fastsurfer(nifti_path)
-        
-        # Step 3: Extract hippocampal volumes (from FastSurfer outputs only)
+
+        # Step 3: Extract hippocampal volumes (from FastSurfer outputs only) (85% to 90%)
         if self.progress_callback:
-            self.progress_callback(65, "Extracting hippocampal volumes...")
+            self.progress_callback(85, "Extracting hippocampal volumes...")
         hippocampal_stats = self._extract_hippocampal_data(fastsurfer_output)
-        
-        # Step 4: Calculate asymmetry indices
+
+        # Step 4: Calculate asymmetry indices (90% to 95%)
         if self.progress_callback:
-            self.progress_callback(70, "Calculating asymmetry indices...")
+            self.progress_callback(90, "Calculating asymmetry indices...")
         metrics = self._calculate_asymmetry(hippocampal_stats)
-        
-        # Step 5: Generate segmentation visualizations
+
+        # Step 5: Generate segmentation visualizations (95% to 98%)
         if self.progress_callback:
-            self.progress_callback(75, "Generating visualizations...")
+            self.progress_callback(95, "Generating visualizations...")
         visualization_paths = self._generate_visualizations(nifti_path, fastsurfer_output)
-        
-        # Step 6: Save results
+
+        # Step 6: Save results (98% to 100%)
         if self.progress_callback:
-            self.progress_callback(82, "Saving results...")
+            self.progress_callback(98, "Saving results...")
         self._save_results(metrics)
         
+        # Final completion
+        if self.progress_callback:
+            self.progress_callback(100, "Processing complete!")
+
         logger.info(
             "processing_pipeline_completed",
             job_id=str(self.job_id),
             metrics_count=len(metrics),
         )
-        
+
         return {
             "job_id": str(self.job_id),
             "output_dir": str(self.output_dir),
@@ -414,10 +418,29 @@ class MRIProcessor:
         else:
             logger.info("using_cpu_for_processing", note="No GPU detected, using CPU")
         
+        # Ensure clean paths to prevent duplication issues
+        input_dir = nifti_path.parent.resolve()
+        output_dir = fastsurfer_dir.resolve()
+
+        # Validate paths are not nested or duplicated
+        input_dir_str = str(input_dir)
+        output_dir_str = str(output_dir)
+
+        if input_dir_str in output_dir_str or output_dir_str in input_dir_str:
+            logger.warning("path_overlap_detected", input=input_dir_str, output=output_dir_str)
+            # Use parent directories to avoid overlap
+            input_dir = input_dir.parent if input_dir.parent != input_dir else input_dir
+            output_dir = output_dir.parent if output_dir.parent != output_dir else output_dir
+
+        logger.info("singularity_bind_paths",
+                   input_dir=str(input_dir),
+                   output_dir=str(output_dir),
+                   nifti_name=nifti_path.name)
+
         # Add bind mounts and environment
         cmd.extend([
-            "--bind", f"{nifti_path.parent}:/input:ro",
-            "--bind", f"{fastsurfer_dir}:/output",
+            "--bind", f"{input_dir}:/input:ro",
+            "--bind", f"{output_dir}:/output",
             "--env", "TQDM_DISABLE=1",
             "--cleanenv",
             str(singularity_img),
@@ -542,24 +565,24 @@ class MRIProcessor:
     def _extract_hippocampal_data(self, fastsurfer_dir: Path) -> Dict:
         """
         Extract hippocampal volumes from FastSurfer output.
-        
-        Tries SegmentHA subfield data first, falls back to FastSurfer's total
-        hippocampal volumes from aseg+DKT if subfields are not available.
-        
+
+        Tries FastSurfer's total hippocampal volumes from aseg+DKT first,
+        falls back to summing hippocampal subfield volumes if available.
+
         Args:
             fastsurfer_dir: FastSurfer output directory
-        
+
         Returns:
             Dictionary of hippocampal volumes by region and hemisphere
         """
         logger.info("extracting_hippocampal_data")
-        
+
         stats_dir = fastsurfer_dir / str(self.job_id) / "stats"
-        
-        # Use FastSurfer stats only (SegmentHA removed)
-        logger.info("using_fastsurfer_aseg_data")
+
+        # First try: Use FastSurfer aseg+DKT stats (preferred)
+        logger.info("checking_fastsurfer_aseg_data")
         aseg_file = stats_dir / "aseg+DKT.stats"
-        
+
         if aseg_file.exists():
             volumes = segmentation.parse_aseg_stats(aseg_file)
             if volumes:
@@ -570,23 +593,43 @@ class MRIProcessor:
                     }
                 }
                 logger.info(
-                    "fastsurfer_hippocampal_data_found",
+                    "fastsurfer_aseg_data_found",
                     left=volumes.get("left"),
                     right=volumes.get("right")
                 )
-            else:
-                logger.warning("no_hippocampal_volumes_found")
-                hippocampal_data = {}
-        else:
-            logger.error("no_stats_files_found", stats_dir=str(stats_dir))
-            hippocampal_data = {}
-        
-        logger.info(
-            "hippocampal_data_extracted",
-            regions=list(hippocampal_data.keys()),
-        )
-        
-        return hippocampal_data
+                return hippocampal_data
+
+        # Second try: Fall back to summing hippocampal subfield volumes
+        logger.info("aseg_data_not_found_falling_back_to_subfields")
+        left_subfield_file = stats_dir / "lh.hippoSfVolumes-T1.v21.txt"
+        right_subfield_file = stats_dir / "rh.hippoSfVolumes-T1.v21.txt"
+
+        if left_subfield_file.exists() and right_subfield_file.exists():
+            left_volumes = segmentation.parse_hippo_stats(left_subfield_file)
+            right_volumes = segmentation.parse_hippo_stats(right_subfield_file)
+
+            if left_volumes and right_volumes:
+                left_total = sum(left_volumes.values())
+                right_total = sum(right_volumes.values())
+
+                hippocampal_data = {
+                    "Hippocampus": {
+                        "left": left_total,
+                        "right": right_total,
+                    }
+                }
+                logger.info(
+                    "fastsurfer_subfield_data_found",
+                    left_total=left_total,
+                    right_total=right_total,
+                    left_regions=len(left_volumes),
+                    right_regions=len(right_volumes)
+                )
+                return hippocampal_data
+
+        # No data found
+        logger.error("no_hippocampal_data_found", stats_dir=str(stats_dir))
+        return {}
     
     def _calculate_asymmetry(self, hippocampal_data: Dict) -> List[Dict]:
         """

@@ -2,12 +2,14 @@
 Task management service for canceling/revoking Celery tasks and stopping processes.
 
 This service handles graceful cancellation of running or pending jobs.
+Extended with job monitoring for desktop mode.
 """
 
 import os
 import signal
 import subprocess
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Optional, List
 from uuid import UUID
 
 from backend.core.logging import get_logger
@@ -225,6 +227,170 @@ class TaskManagementService:
             TaskManagementService.terminate_fastsurfer_process(job_id)
         
         return cancelled
+
+    @staticmethod
+    def check_for_stuck_jobs(db_session=None, timeout_minutes: int = 120) -> List[dict]:
+        """
+        Check for jobs that have been processing too long and mark them as failed.
+
+        Args:
+            db_session: Optional database session (will create one if not provided)
+            timeout_minutes: Minutes after which a job is considered stuck (default 2 hours for desktop)
+
+        Returns:
+            List of jobs that were marked as failed
+        """
+        from sqlalchemy.orm import Session
+        from backend.core.database import SessionLocal
+        from backend.models.job import Job, JobStatus
+        from backend.services import JobService
+
+        db = db_session or SessionLocal()
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+
+            # Find jobs that are processing but started too long ago
+            stuck_jobs = db.query(Job).filter(
+                Job.status == JobStatus.PROCESSING,
+                Job.started_at < cutoff_time
+            ).all()
+
+            failed_jobs = []
+            for job in stuck_jobs:
+                elapsed_minutes = (datetime.utcnow() - job.started_at).total_seconds() / 60
+                logger.warning(
+                    "stuck_job_detected",
+                    job_id=str(job.id),
+                    started_at=job.started_at.isoformat(),
+                    elapsed_minutes=round(elapsed_minutes, 1)
+                )
+
+                # Mark as failed
+                error_message = f"Job processing timeout after {timeout_minutes} minutes ({elapsed_minutes:.1f} minutes elapsed)"
+                JobService.fail_job(db, job.id, error_message)
+                failed_jobs.append({
+                    "job_id": str(job.id),
+                    "started_at": job.started_at.isoformat(),
+                    "elapsed_minutes": elapsed_minutes
+                })
+
+            if failed_jobs:
+                logger.info("stuck_jobs_cleaned_up", count=len(failed_jobs))
+
+            return failed_jobs
+
+        finally:
+            if not db_session:
+                db.close()
+
+    @staticmethod
+    def cleanup_old_jobs(db_session=None, retention_days: int = 90) -> int:
+        """
+        Clean up old completed/failed jobs and their files (desktop mode - keep longer).
+
+        Args:
+            db_session: Optional database session
+            retention_days: Days to keep jobs before cleanup (default 90 for desktop)
+
+        Returns:
+            Number of jobs cleaned up
+        """
+        from sqlalchemy.orm import Session
+        from backend.core.database import SessionLocal
+        from backend.models.job import Job, JobStatus
+        from backend.services import StorageService
+
+        db = db_session or SessionLocal()
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=retention_days)
+
+            # Find old jobs
+            old_jobs = db.query(Job).filter(
+                Job.status.in_([JobStatus.COMPLETED, JobStatus.FAILED]),
+                Job.created_at < cutoff_date
+            ).all()
+
+            storage_service = StorageService()
+            cleaned_count = 0
+
+            for job in old_jobs:
+                try:
+                    # Clean up files
+                    if job.file_path and storage_service.delete_file(job.file_path):
+                        logger.info("job_files_cleaned", job_id=str(job.id))
+
+                    # Clean up result directory if it exists
+                    if job.result_path:
+                        import shutil
+                        from pathlib import Path
+                        result_dir = Path(job.result_path)
+                        if result_dir.exists():
+                            shutil.rmtree(result_dir, ignore_errors=True)
+                            logger.info("job_result_dir_cleaned", job_id=str(job.id))
+
+                    # Delete job record
+                    db.delete(job)
+                    cleaned_count += 1
+
+                except Exception as e:
+                    logger.warning("job_cleanup_failed", job_id=str(job.id), error=str(e))
+
+            if cleaned_count > 0:
+                db.commit()
+                logger.info("old_jobs_cleaned_up", count=cleaned_count)
+
+            return cleaned_count
+
+        finally:
+            if not db_session:
+                db.close()
+
+    @staticmethod
+    def get_system_stats() -> dict:
+        """Get system statistics for monitoring"""
+        try:
+            import psutil
+            return {
+                "cpu_percent": psutil.cpu_percent(interval=0.5),
+                "memory_percent": psutil.virtual_memory().percent,
+                "disk_usage": psutil.disk_usage('/').percent if os.path.exists('/') else None,
+                "process_count": len(psutil.pids()),
+            }
+        except ImportError:
+            logger.warning("psutil_not_available_for_stats")
+            return {
+                "cpu_percent": None,
+                "memory_percent": None,
+                "disk_usage": None,
+                "process_count": None,
+            }
+
+    @staticmethod
+    def run_maintenance(db_session=None):
+        """Run periodic maintenance tasks for desktop mode"""
+        try:
+            # Check for stuck jobs (timeout after 2 hours for desktop)
+            stuck_jobs = TaskManagementService.check_for_stuck_jobs(db_session, timeout_minutes=120)
+
+            # Clean up old jobs (keep for 90 days in desktop mode)
+            cleaned_count = TaskManagementService.cleanup_old_jobs(db_session, retention_days=90)
+
+            # Log system stats
+            stats = TaskManagementService.get_system_stats()
+            logger.info("maintenance_completed",
+                       stuck_jobs=len(stuck_jobs),
+                       cleaned_jobs=cleaned_count,
+                       **stats)
+
+            return {
+                "stuck_jobs": stuck_jobs,
+                "cleaned_jobs": cleaned_count,
+                "system_stats": stats
+            }
+
+        except Exception as e:
+            logger.error("maintenance_failed", error=str(e))
+            return {"error": str(e)}
 
 
 

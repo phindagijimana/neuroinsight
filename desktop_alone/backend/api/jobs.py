@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from backend.core.database import get_db
 from backend.core.logging import get_logger
 from backend.schemas import JobResponse, JobStatus
+from backend.schemas.metric import MetricResponse
 from backend.services import JobService
 
 logger = get_logger(__name__)
@@ -46,30 +47,44 @@ def list_jobs(
     return jobs
 
 
-@router.get("/{job_id}", response_model=JobResponse)
+@router.get("/{job_id}")
 def get_job(
     job_id: UUID,
     db: Session = Depends(get_db),
 ):
     """
     Retrieve a specific job by ID.
-    
+
     Args:
         job_id: Job identifier
         db: Database session dependency
-    
+
     Returns:
         Job record with associated metrics
-    
+
     Raises:
         HTTPException: If job not found
     """
     job = JobService.get_job(db, job_id)
-    
+
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    return job
+
+    # Convert SQLAlchemy model to dictionary response
+    return {
+        "id": str(job.id),
+        "filename": job.filename,
+        "file_path": job.file_path,
+        "status": job.status.value,  # Convert enum to string
+        "error_message": job.error_message,
+        "created_at": job.created_at.isoformat(),
+        "started_at": job.started_at.isoformat() if job.started_at else None,
+        "completed_at": job.completed_at.isoformat() if job.completed_at else None,
+        "result_path": job.result_path,
+        "progress": job.progress,
+        "current_step": job.current_step,
+        "metrics": [MetricResponse.from_orm(metric).dict() for metric in job.metrics]
+    }
 
 
 @router.delete("/{job_id}", status_code=204)

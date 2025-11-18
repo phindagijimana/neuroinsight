@@ -114,15 +114,47 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
       ],
       "icon": "build/icons",
       "category": "Science;MedicalSoftware;Education",
       "desktop": {
         "Name": "NeuroInsight",
-        "Comment": "Hippocampal Asymmetry Analysis",
-        "Categories": "Science;MedicalSoftware;Education;Medical"
-      }
+        "Comment": "Hippocampal Asymmetry Analysis Tool",
+        "Categories": "Science;MedicalSoftware;Education;Medical",
+        "StartupWMClass": "NeuroInsight"
+      },
+      "maintainer": "NeuroInsight Team <support@neuroinsight.app>"
+    },
+    "deb": {
+      "priority": "optional",
+      "depends": ["libglib2.0-0", "libgtk-3-0", "libxss1", "libasound2", "libdrm2", "libxcomposite1", "libxdamage1", "libxrandr2", "libgbm1", "libxkbcommon0", "libatspi2.0-0"],
+      "afterInstall": "scripts/postinst.sh",
+      "afterRemove": "scripts/postrm.sh"
+    },
+    "rpm": {
+      "depends": ["glib2", "gtk3", "libXScrnSaver", "alsa-lib", "libXcomposite", "libXdamage", "libXrandr", "libgbm", "libxkbcommon", "at-spi2-core"],
+      "afterInstall": "scripts/postinst.sh",
+      "afterRemove": "scripts/postrm.sh"
+    },
+    "flatpak": {
+      "runtime": "org.freedesktop.Platform",
+      "runtimeVersion": "23.08",
+      "base": "org.electronjs.Electron2.BaseApp",
+      "baseVersion": "23.08",
+      "finishArgs": [
+        "--share=ipc",
+        "--socket=x11",
+        "--socket=wayland",
+        "--device=dri",
+        "--share=network",
+        "--filesystem=home:create",
+        "--filesystem=xdg-documents:create",
+        "--filesystem=xdg-download:create"
+      ]
     }
   }
 }

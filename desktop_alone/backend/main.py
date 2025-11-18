@@ -5,6 +5,9 @@ This module initializes and configures the FastAPI application,
 including middleware, routes, and lifecycle events.
 """
 
+import asyncio
+import threading
+import time
 from contextlib import asynccontextmanager
 
 from pathlib import Path
@@ -24,11 +27,34 @@ setup_logging(settings.log_level, settings.environment)
 logger = get_logger(__name__)
 
 
+def maintenance_worker():
+    """Background maintenance worker for desktop mode"""
+    logger.info("maintenance_worker_started")
+
+    while True:
+        try:
+            # Run maintenance every 30 minutes
+            time.sleep(30 * 60)
+
+            from backend.services.task_management_service import TaskManagementService
+            result = TaskManagementService.run_maintenance()
+
+            if isinstance(result, dict) and "error" not in result:
+                logger.info("maintenance_cycle_completed", **result)
+            else:
+                logger.warning("maintenance_cycle_failed", result=result)
+
+        except Exception as e:
+            logger.error("maintenance_worker_error", error=str(e))
+            # Continue running despite errors
+            time.sleep(60)  # Wait a bit before retrying
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application lifespan context manager.
-    
+
     Handles startup and shutdown events.
     """
     # Startup
@@ -38,7 +64,7 @@ async def lifespan(app: FastAPI):
         version=settings.app_version,
         environment=settings.environment,
     )
-    
+
     # Initialize database
     try:
         init_db()
@@ -46,10 +72,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("database_initialization_failed", error=str(e))
         raise
-    
+
+    # Start maintenance worker for desktop mode
+    maintenance_thread = None
+    if settings.desktop_mode:
+        logger.info("starting_maintenance_worker")
+        maintenance_thread = threading.Thread(target=maintenance_worker, daemon=True)
+        maintenance_thread.start()
+
     yield
-    
+
     # Shutdown
+    if maintenance_thread and maintenance_thread.is_alive():
+        logger.info("stopping_maintenance_worker")
+        # Note: daemon thread will be terminated automatically on shutdown
+
     logger.info("application_shutting_down")
 
 

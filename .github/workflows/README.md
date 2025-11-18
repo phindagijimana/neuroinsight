@@ -2,9 +2,48 @@
 
 ## Active Workflows
 
-### 1. `desktop-build-v17.2.yml` ⭐ **USE THIS ONE - LATEST**
-**Status**: ✅ Active - **RECOMMENDED**
-**Purpose**: Build desktop installers with FIXED smoke tests (FastSurfer mock mode)
+### 1. `desktop-build-v18.yml` ⭐⭐ **USE THIS ONE - LATEST & FASTEST**
+**Status**: ✅ Active - **RECOMMENDED** (November 2025)
+**Purpose**: Focused Windows & Linux builds with mock data fixes
+
+**What it does:**
+- Builds Linux AppImage (~3.6 GB) + checksums
+- Builds Windows Setup.exe (~1 GB) + checksums
+- **NEW**: Includes the latest mock data fixes for proper processing
+- **NEW**: Streamlined workflow (macOS optional)
+- Runs smoke tests to validate builds
+- Generates checksums for security verification
+
+**Key Improvements in v18:**
+- ✅ **Mock data fixes**: Processing now works properly with fallback data
+- ✅ **Faster builds**: Windows + Linux only (skip macOS for speed)
+- ✅ **Better smoke tests**: Comprehensive validation with metrics checking
+- ✅ **Manual control**: Choose to include macOS via workflow dispatch
+
+**Triggers:**
+- **Automatic**: When you push tags like `desktop-v1.3.14`, `desktop-v2.0.0`, etc.
+- **Manual**: Go to Actions → "Desktop Build v18" → "Run workflow" → Choose macOS option
+
+**How to use:**
+```bash
+# Quick Windows + Linux build (recommended)
+# 1. Go to Actions tab
+# 2. Run "Desktop Build v18 - Windows & Linux (Mock Data Fixes)"
+# 3. Select "Skip macOS build: true"
+# 4. Wait ~35 minutes
+
+# Or tag-based build:
+git tag desktop-v1.3.15
+git push origin desktop-v1.3.15
+```
+
+**Build time**: ~25-35 minutes (Windows + Linux only)
+
+---
+
+### 2. `desktop-build-v17.2.yml` ⚡ **ALTERNATIVE - ALL PLATFORMS**
+**Status**: ✅ Active - Full platform coverage
+**Purpose**: Build desktop installers for all platforms (Linux, Windows, macOS)
 
 **What it does:**
 - Builds Linux AppImage (~3.9 GB)
@@ -171,7 +210,8 @@ Questions about workflows? Check:
 
 ---
 
-**Last Updated**: November 16, 2025
-**Current Version**: v17.2 (Smoke Test Fixed + FastSurfer Mock Mode)
+**Last Updated**: November 2025
+**Current Version**: v18 (Mock Data Fixes - Windows & Linux Focus)
+**Recommended Workflow**: `desktop-build-v18.yml`
 **Status**: ✅ Production Ready
 

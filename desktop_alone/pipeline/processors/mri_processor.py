@@ -117,6 +117,7 @@ class MRIProcessor:
             job_id: Unique job identifier
             progress_callback: Optional callback function(progress: int, step: str) for progress updates
         """
+        print(f"DEBUG: MRIProcessor.__init__ called with job_id={job_id}")
         self.job_id = job_id
         self.output_dir = Path(settings.output_dir) / str(job_id)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -686,40 +687,144 @@ class MRIProcessor:
     def _create_mock_fastsurfer_output(self, output_dir: Path) -> None:
         """
         Create mock FastSurfer output for development/testing.
-        
+
         Args:
             output_dir: Output directory for mock data
         """
-        logger.info("creating_mock_fastsurfer_output")
-        
-        stats_dir = output_dir / str(self.job_id) / "stats"
-        stats_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Create mock hippocampal subfields stats file
-        mock_data = {
-            "CA1": {"left": 1250.5, "right": 1198.2},
-            "CA3": {"left": 450.3, "right": 465.1},
-            "subiculum": {"left": 580.7, "right": 555.9},
-            "dentate_gyrus": {"left": 380.2, "right": 395.6},
-        }
-        
-        # Write left hemisphere stats
-        left_stats = stats_dir / "lh.hippoSfVolumes-T1.v21.txt"
-        with open(left_stats, "w") as f:
-            f.write("# Hippocampal subfield volumes (left hemisphere)\n")
-            f.write("# Region Volume\n")
-            for region, volumes in mock_data.items():
-                f.write(f"{region} {volumes['left']:.2f}\n")
-        
-        # Write right hemisphere stats
-        right_stats = stats_dir / "rh.hippoSfVolumes-T1.v21.txt"
-        with open(right_stats, "w") as f:
-            f.write("# Hippocampal subfield volumes (right hemisphere)\n")
-            f.write("# Region Volume\n")
-            for region, volumes in mock_data.items():
-                f.write(f"{region} {volumes['right']:.2f}\n")
-        
-        logger.info("mock_output_created", output_dir=str(output_dir))
+        print("DEBUG: _create_mock_fastsurfer_output method called")
+        print(f"DEBUG: creating_mock_fastsurfer_output: {output_dir}")
+        try:
+            print("DEBUG: try_block_started")
+            # Create directory structure (matching FastSurfer output)
+            subject_dir = output_dir / str(self.job_id)
+            print(f"DEBUG: subject_dir_created: {subject_dir}")
+            stats_dir = subject_dir / "stats"
+            mri_dir = subject_dir / "mri"
+            print("DEBUG: about_to_mkdir")
+            stats_dir.mkdir(parents=True, exist_ok=True)
+            mri_dir.mkdir(parents=True, exist_ok=True)
+            print(f"DEBUG: directories_created: {stats_dir}")
+
+            # Create mock hippocampal subfields stats file
+            mock_data = {
+                "CA1": {"left": 1250.5, "right": 1198.2},
+                "CA3": {"left": 450.3, "right": 465.1},
+                "subiculum": {"left": 580.7, "right": 555.9},
+                "dentate_gyrus": {"left": 380.2, "right": 395.6},
+            }
+
+            # Write left hemisphere stats
+            left_stats = stats_dir / "lh.hippoSfVolumes-T1.v21.txt"
+            with open(left_stats, "w") as f:
+                f.write("# Hippocampal subfield volumes (left hemisphere)\n")
+                f.write("# Region Volume\n")
+                for region, volumes in mock_data.items():
+                    f.write(f"{region} {volumes['left']:.2f}\n")
+
+            # Write right hemisphere stats
+            right_stats = stats_dir / "rh.hippoSfVolumes-T1.v21.txt"
+            with open(right_stats, "w") as f:
+                f.write("# Hippocampal subfield volumes (right hemisphere)\n")
+                f.write("# Region Volume\n")
+                for region, volumes in mock_data.items():
+                    f.write(f"{region} {volumes['right']:.2f}\n")
+            logger.info("hippo_stats_created")
+
+            # Create mock aseg stats file
+            aseg_stats = stats_dir / "aseg+DKT.stats"
+            logger.info(f"creating_aseg_stats: {aseg_stats}")
+            try:
+                with open(aseg_stats, "w") as f:
+                    f.write("# aseg+DKT.stats\n")
+                    f.write("# Index SegId NVoxels Volume_mm3 StructName normMean normStdDev normMin normMax normRange\n")
+                    f.write("17 17 31262 1250.5 Left-Hippocampus 110.5 15.2 85.3 145.6 60.3\n")
+                    f.write("53 53 29845 1198.2 Right-Hippocampus 108.7 14.8 82.1 142.3 60.2\n")
+                logger.info(f"aseg_stats_created: {aseg_stats}")
+            except Exception as e:
+                logger.error(f"aseg_stats_creation_failed: {e} at {aseg_stats}")
+
+            # Create mock segmentation files for visualization
+            try:
+                self._create_mock_segmentation_files(mri_dir)
+                logger.info("mock_segmentation_files_created")
+            except Exception as e:
+                logger.error(f"mock_segmentation_files_failed: {e}")
+
+            logger.info(f"mock_output_created: {output_dir}")
+        except Exception as e:
+            logger.error(f"create_mock_fastsurfer_output_failed: {e}")
+            raise
+
+    def _create_mock_segmentation_files(self, mri_dir: Path) -> None:
+        """
+        Create mock segmentation files needed for visualization.
+
+        Args:
+            mri_dir: MRI directory to create files in
+        """
+        import numpy as np
+        import nibabel as nib
+
+        logger.info("creating_mock_segmentation_files")
+
+        # Create a simple 3D brain-like volume (64x64x32) for mock data
+        shape = (64, 64, 32)
+        data = np.zeros(shape, dtype=np.int16)
+
+        # Add mock hippocampus regions
+        # Left hippocampus (label 17) - roughly in the temporal lobe area
+        data[20:30, 15:25, 10:20] = 17
+        # Right hippocampus (label 53)
+        data[35:45, 15:25, 10:20] = 53
+
+        # Add some other brain structures for realism
+        data[25:35, 25:35, 15:25] = 2  # Left cerebral white matter
+        data[30:40, 25:35, 15:25] = 41  # Right cerebral white matter
+
+        # Create affine matrix (simple scaling)
+        affine = np.diag([1.0, 1.0, 1.0, 1.0])
+
+        # Create mock T1 anatomical image (orig.mgz)
+        t1_data = np.random.normal(1000, 100, size=shape).astype(np.float32)
+        # Make hippocampus areas slightly different intensity
+        t1_data[20:30, 15:25, 10:20] = np.random.normal(1100, 50, size=(10, 10, 10))
+        t1_data[35:45, 15:25, 10:20] = np.random.normal(1100, 50, size=(10, 10, 10))
+
+        # Save orig.mgz (T1 anatomical)
+        orig_img = nib.Nifti1Image(t1_data, affine)
+        orig_path = mri_dir / "orig.mgz"
+        nib.save(orig_img, orig_path)
+
+        # Save aparc.DKTatlas+aseg.deep.mgz (segmentation)
+        seg_img = nib.Nifti1Image(data, affine)
+        aseg_path = mri_dir / "aparc.DKTatlas+aseg.deep.mgz"
+        nib.save(seg_img, aseg_path)
+
+        # Create mock hippocampal subfield files (optional)
+        # Left hippocampus subfields
+        lh_subfields = np.zeros(shape, dtype=np.int16)
+        lh_subfields[20:25, 15:25, 10:20] = 203  # CA1
+        lh_subfields[25:30, 15:25, 10:20] = 204  # CA3
+
+        # Right hippocampus subfields
+        rh_subfields = np.zeros(shape, dtype=np.int16)
+        rh_subfields[35:40, 15:25, 10:20] = 1203  # CA1_right
+        rh_subfields[40:45, 15:25, 10:20] = 1204  # CA3_right
+
+        # Save subfield files
+        lh_img = nib.Nifti1Image(lh_subfields, affine)
+        lh_path = mri_dir / "lh.hippoSfLabels-T1.v21.mgz"
+        nib.save(lh_img, lh_path)
+
+        rh_img = nib.Nifti1Image(rh_subfields, affine)
+        rh_path = mri_dir / "rh.hippoSfLabels-T1.v21.mgz"
+        nib.save(rh_img, rh_path)
+
+        logger.info("mock_segmentation_files_created",
+                   orig=str(orig_path),
+                   aseg=str(aseg_path),
+                   lh_subfields=str(lh_path),
+                   rh_subfields=str(rh_path))
     
     def _extract_hippocampal_data(self, fastsurfer_dir: Path) -> Dict:
         """

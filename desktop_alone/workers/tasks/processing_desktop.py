@@ -5,11 +5,13 @@ This module provides the same processing functionality as processing.py
 but uses threading instead of Celery for desktop mode.
 """
 
+import time
 from uuid import UUID
 
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
+from backend.core.config import get_settings
 from backend.core.database import SessionLocal
 from backend.core.logging import get_logger
 from backend.models.job import Job, JobStatus
@@ -17,6 +19,7 @@ from backend.services import JobService, MetricService, StorageService
 from pipeline.processors import MRIProcessor
 
 logger = get_logger(__name__)
+settings = get_settings()
 
 
 def update_job_progress(db: Session, job_id, progress: int, current_step: str):
@@ -48,28 +51,47 @@ def update_job_progress(db: Session, job_id, progress: int, current_step: str):
 def process_mri_direct(job_id: str):
     """
     Process MRI scan through the analysis pipeline (desktop version).
-    
+
     This function is the same as the Celery task but without Celery decorators.
     It runs in a background thread for desktop mode.
-    
+
     Progress updates in 5% increments:
     - 0-5%: Starting
     - 5-10%: File preparation
     - 10-15%: Initialization
+    """
+    print(f"DEBUG: process_mri_direct called with job_id={job_id}")
     - 15-85%: Brain segmentation and processing (with granular updates)
     - 85-95%: Saving metrics
     - 95-100%: Finalizing
-    
+
     Args:
         job_id: Job identifier (UUID as string)
-    
+
     Returns:
         Dictionary with processing results
     """
     db: Session = SessionLocal()
-    
+
+    # Track processing start time for timeout monitoring
+    start_time = time.time()
+    timeout_seconds = getattr(settings, 'processing_timeout', 10800)  # Default 3 hours
+
+    def check_timeout():
+        """Check if processing has exceeded timeout"""
+        elapsed = time.time() - start_time
+        if elapsed > timeout_seconds:
+            logger.error(
+                "processing_timeout_exceeded",
+                job_id=job_id,
+                elapsed_seconds=int(elapsed),
+                timeout_seconds=timeout_seconds
+            )
+            return True
+        return False
+
     try:
-        logger.info("desktop_task_started", job_id=job_id)
+        logger.info("desktop_task_started", job_id=job_id, timeout_seconds=timeout_seconds)
         
         # Parse job ID - CRITICAL: Ensure UUID string format with dashes
         # SQLite stores UUID as VARCHAR(36) with dashes like: 'd6615863-f581-467f-b6b2-3e20dcf86a01'
@@ -101,7 +123,16 @@ def process_mri_direct(job_id: str):
         if not job:
             logger.error("job_not_found_after_check", job_id=job_id)
             raise ValueError(f"Job {job_id} not found")
-        
+
+        # Check timeout after job setup
+        if check_timeout():
+            JobService.fail_job(db, job_uuid_canonical, f"Processing timeout after job setup")
+            return {
+                "status": "failed",
+                "job_id": job_id,
+                "message": f"Processing timeout after {timeout_seconds} seconds"
+            }
+
         # Update progress: Job started (5%)
         update_job_progress(db, job_uuid_canonical, 5, "Job started - preparing file...")
         
@@ -153,7 +184,7 @@ def process_mri_direct(job_id: str):
                     return False
                 finally:
                     db_check.close()
-            
+
             # Check before processing
             if check_cancellation():
                 logger.info("processing_aborted_cancelled", job_id=job_id)
@@ -162,8 +193,22 @@ def process_mri_direct(job_id: str):
                     "job_id": job_id,
                     "message": "Job was cancelled during processing"
                 }
-            
+
+            # Check timeout before processing
+            if check_timeout():
+                JobService.fail_job(db, job_uuid_canonical, f"Processing timeout before starting pipeline")
+                return {
+                    "status": "failed",
+                    "job_id": job_id,
+                    "message": f"Processing timeout after {timeout_seconds} seconds"
+                }
+
             results = processor.process(file_path)
+
+            # Check timeout after processing completes
+            if check_timeout():
+                logger.warning("processing_completed_but_timeout_exceeded", job_id=job_id)
+                # Still save results but mark as warning
             
             # Check again after processing completes
             if check_cancellation():

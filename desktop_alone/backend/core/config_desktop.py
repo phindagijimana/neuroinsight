@@ -71,6 +71,7 @@ class DesktopSettings(BaseSettings):
     
     # Processing
     enable_gpu: bool = Field(default=True, env="ENABLE_GPU")  # Auto-detect GPU
+    processing_timeout: int = Field(default=10800, env="PROCESSING_TIMEOUT")  # 3 hours for desktop
     
     # Cleanup - Desktop mode uses less aggressive cleanup
     cleanup_enabled: bool = Field(default=True, env="CLEANUP_ENABLED")

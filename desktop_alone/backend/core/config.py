@@ -59,26 +59,27 @@ class Settings(BaseSettings):
     minio_bucket: str = Field(default="neuroinsight-data", env="MINIO_BUCKET")
     minio_use_ssl: bool = Field(default=False, env="MINIO_USE_SSL")
     
-    # File Storage
-    @property
-    def upload_dir(self) -> str:
-        """Upload directory - user Documents for desktop, configurable for server."""
-        if self.desktop_mode:
+    # File Storage - Desktop mode uses user directories
+    upload_dir: str = Field(default="", env="UPLOAD_DIR")
+    output_dir: str = Field(default="", env="OUTPUT_DIR")
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Set desktop directories if not explicitly provided and in desktop mode
+        if self.desktop_mode and not self.upload_dir:
             from backend.core.config_desktop import get_desktop_settings
             desktop_settings = get_desktop_settings()
-            return str(desktop_settings.upload_dir)
-        else:
-            return os.getenv("UPLOAD_DIR", "/data/uploads")
-    
-    @property
-    def output_dir(self) -> str:
-        """Output directory - user Documents for desktop, configurable for server."""
-        if self.desktop_mode:
+            self.upload_dir = str(desktop_settings.upload_dir)
+        if self.desktop_mode and not self.output_dir:
             from backend.core.config_desktop import get_desktop_settings
             desktop_settings = get_desktop_settings()
-            return str(desktop_settings.output_dir)
-        else:
-            return os.getenv("OUTPUT_DIR", "/data/outputs")
+            self.output_dir = str(desktop_settings.output_dir)
+
+        # Set defaults for server mode
+        if not self.desktop_mode and not self.upload_dir:
+            self.upload_dir = "/data/uploads"
+        if not self.desktop_mode and not self.output_dir:
+            self.output_dir = "/data/outputs"
     
     max_upload_size: int = Field(default=524288000, env="MAX_UPLOAD_SIZE")  # 500MB
     

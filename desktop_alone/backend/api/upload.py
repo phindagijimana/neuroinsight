@@ -98,10 +98,24 @@ async def upload_mri(
 
             # Try nibabel first (works on Linux/macOS)
             try:
-                img = nib.load(file_obj)
-                file_obj.seek(0)  # Reset for potential reuse
-                logger.info("nifti_validation_nibabel_success", filename=file.filename)
-                validation_success = True
+                # nibabel needs a file path to determine format, create temp file
+                import tempfile
+                import os
+                with tempfile.NamedTemporaryFile(suffix='.nii', delete=False) as temp_file:
+                    temp_file.write(file_data)
+                    temp_file_path = temp_file.name
+
+                try:
+                    img = nib.load(temp_file_path)
+                    logger.info("nifti_validation_nibabel_success", filename=file.filename)
+                    validation_success = True
+                finally:
+                    # Clean up temp file
+                    try:
+                        os.unlink(temp_file_path)
+                    except OSError:
+                        pass  # Ignore cleanup errors
+
             except Exception as nibabel_error:
                 logger.warning(
                     "nifti_validation_nibabel_failed",

@@ -189,11 +189,11 @@ def poll_job(port: int, job_id: str, timeout: int = 7200, stalled_threshold: int
                 )
 
         # Check Docker health during active processing
-        if elapsed > 60 and status == "RUNNING":  # After 1 minute, during processing
+        if elapsed > 60 and status == "running":  # After 1 minute, during processing
             if not check_docker_health():
                 print("[smoke-test] WARNING: Docker health check failed during processing")
 
-        if status in {"COMPLETED", "FAILED"}:
+        if status in {"completed", "failed"}:
             total_time = time.time() - start_time
             print(f"[smoke-test] Job finished in {total_time:.1f}s with status: {status}")
             return payload
@@ -355,11 +355,11 @@ def main() -> None:
         job_info = poll_job(args.api_port, job_id, timeout=processing_timeout, stalled_threshold=args.stalled_threshold)
         status = job_info.get("status")
 
-        if status == "COMPLETED":
+        if status == "completed":
             ensure_metrics(output_dir, job_id)
             print(f"[smoke-test] ✅ SUCCESS: Job {job_id} completed successfully")
             return  # Success!
-        elif status == "FAILED":
+        elif status == "failed":
             error_msg = job_info.get("error_message", "Unknown error")
             raise RuntimeError(f"Job failed with error: {error_msg}")
         else:
