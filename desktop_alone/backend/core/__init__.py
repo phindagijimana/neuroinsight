@@ -1,6 +1,7 @@
 """Core configuration and utilities for NeuroInsight application."""
 
-from .config import Settings, get_settings
+# Use desktop-specific configuration
+from .config_desktop import DesktopSettings as Settings, get_desktop_settings as get_settings
 from .database import Base, get_db, init_db
 from .logging import setup_logging
 
