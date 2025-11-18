@@ -1,7 +1,7 @@
 """
 Task execution service - abstraction layer for desktop vs server mode.
 
-Desktop mode: Uses ThreadPoolExecutor
+Desktop mode: Uses direct threading (not ThreadPoolExecutor due to PyInstaller issues)
 Server mode: Uses Celery (if needed in future)
 """
 
@@ -12,8 +12,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Desktop mode uses thread pool
-executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="neuroinsight-worker")
+# ThreadPoolExecutor doesn't work reliably in PyInstaller frozen apps
+# Desktop mode uses direct threading instead
+executor = None  # Not used in desktop mode
 
 
 class TaskResult:
@@ -52,31 +53,32 @@ class TaskService:
     def submit_task(func: Callable, *args, **kwargs) -> TaskResult:
         """
         Submit a task for background execution.
-        
+
         Args:
             func: Function to execute
             *args: Positional arguments
             **kwargs: Keyword arguments
-        
+
         Returns:
             TaskResult: Object to track task status
         """
         # Generate task ID
         import uuid
         task_id = str(uuid.uuid4())
-        
-        logger.info(f"Submitting task {task_id}: {func.__name__}")
 
-        # Submit to thread pool
-        future = executor.submit(func, *args, **kwargs)
+        logger.warning(f"TaskService.submit_task called but ThreadPoolExecutor disabled for desktop mode. Use direct threading instead.")
 
-        logger.info(f"Task {task_id} submitted to executor")
-
-        return TaskResult(future, task_id)
+        # This should not be called in desktop mode - raise error
+        raise RuntimeError("TaskService.submit_task should not be used in desktop mode. Use direct threading.")
     
     @staticmethod
     def get_executor_stats() -> Dict[str, Any]:
         """Get statistics about the task executor"""
+        if executor is None:
+            return {
+                "mode": "direct_threading",
+                "note": "ThreadPoolExecutor disabled for desktop mode",
+            }
         return {
             "max_workers": executor._max_workers,
             "queue_size": executor._work_queue.qsize(),
@@ -86,12 +88,15 @@ class TaskService:
     @staticmethod
     def shutdown(wait: bool = True):
         """Shutdown the task executor"""
-        logger.info("Shutting down task executor")
-        executor.shutdown(wait=wait)
+        if executor is not None:
+            logger.info("Shutting down task executor")
+            executor.shutdown(wait=wait)
+        else:
+            logger.info("No task executor to shutdown (desktop mode)")
 
 
-# Convenience function
+# Convenience function - disabled in desktop mode
 def submit_task(func: Callable, *args, **kwargs) -> TaskResult:
-    """Submit a background task"""
-    return TaskService.submit_task(func, *args, **kwargs)
+    """Submit a background task - disabled in desktop mode"""
+    raise RuntimeError("submit_task() should not be used in desktop mode. Use direct threading.")
 

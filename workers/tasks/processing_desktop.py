@@ -59,8 +59,9 @@ def process_mri_direct(job_id: str):
     Returns:
         Dictionary with processing results
     """
-    logger.info("DESKTOP_PROCESSING_STARTED", job_id=job_id)
+    logger.info("DESKTOP_PROCESSING_STARTED", job_id=job_id, function="process_mri_direct")
     db: Session = SessionLocal()
+    logger.info("Database session created", job_id=job_id)
 
     try:
         logger.info("desktop_processing_started", job_id=job_id)

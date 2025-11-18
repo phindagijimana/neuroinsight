@@ -236,26 +236,36 @@ async def upload_mri(
         settings = get_settings()
         
         if settings.desktop_mode:
-            # Desktop mode: Process in background thread
+            # Desktop mode: Process synchronously (no threading in frozen apps)
             try:
                 from workers.tasks.processing_desktop import process_mri_direct
-                from backend.services.task_service import submit_task
-                
-                # Submit task to thread pool executor
-                task_result = submit_task(process_mri_direct, str(job.id))
-                
+                import threading
+
+                # Process synchronously in a separate thread to avoid blocking the API
+                def process_async():
+                    try:
+                        logger.info("desktop_processing_starting", job_id=str(job.id))
+                        result = process_mri_direct(str(job.id))
+                        logger.info("desktop_processing_completed", job_id=str(job.id), result=result)
+                    except Exception as e:
+                        logger.error("desktop_processing_failed", job_id=str(job.id), error=str(e), exc_info=True)
+
+                # Start processing in background thread
+                processing_thread = threading.Thread(target=process_async, daemon=True)
+                processing_thread.start()
+
                 logger.info(
-                    "desktop_task_submitted",
+                    "desktop_task_started",
                     job_id=str(job.id),
-                    task_id=task_result.id,
-                    mode="threading"
+                    mode="synchronous_thread"
                 )
             except Exception as task_error:
                 logger.error(
-                    "desktop_task_submit_failed",
+                    "desktop_task_start_failed",
                     job_id=str(job.id),
                     error=str(task_error),
                     error_type=type(task_error).__name__,
+                    exc_info=True
                 )
                 # Don't raise - job is created successfully, just needs manual trigger
         else:
