@@ -6,7 +6,7 @@ This configuration is used when running in desktop mode (no Docker, no external 
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from pydantic import Field
 from pydantic_settings import BaseSettings
 import platformdirs
@@ -65,7 +65,17 @@ class DesktopSettings(BaseSettings):
     
     # CORS - Desktop mode allows localhost
     cors_origins: str = Field(default="http://localhost:8000,http://127.0.0.1:8000", env="CORS_ORIGINS")
-    
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS origins from comma-separated string."""
+        if isinstance(self.cors_origins, str):
+            # Handle wildcard - if set to "*", return ["*"] for FastAPI
+            if self.cors_origins.strip() == "*":
+                return ["*"]
+            return [origin.strip() for origin in self.cors_origins.split(",")]
+        return self.cors_origins if isinstance(self.cors_origins, list) else []
+
     # Logging
     log_level: str = Field(default="INFO", env="LOG_LEVEL")
     
