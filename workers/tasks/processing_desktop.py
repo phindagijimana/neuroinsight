@@ -211,13 +211,13 @@ def process_mri_direct(job_id: str):
             JobService.fail_job(db, job_uuid, error_message)
 
             logger.error(
-                "desktop_processing_failed",
+                "DESKTOP_PROCESSING_FAILED",
                 job_id=job_id,
                 error=error_message,
+                error_type=type(e).__name__,
                 exc_info=True,
             )
 
-            raise  # Re-raise the exception
-
+            raise  # Re-raise so the task fails
     finally:
         db.close()
